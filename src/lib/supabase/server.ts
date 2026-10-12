@@ -1,7 +1,9 @@
 import 'server-only';
 import { cookies } from 'next/headers';
-import { createServerClient } from '@supabase/ssr';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
+
+type CookieToSet = { name: string; value: string; options: CookieOptions };
 
 /** Signed-in user's client (row level security applies). */
 export async function userClient() {
@@ -9,7 +11,7 @@ export async function userClient() {
   return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
     cookies: {
       getAll: () => store.getAll(),
-      setAll: (list) => {
+      setAll: (list: CookieToSet[]) => {
         try {
           list.forEach(({ name, value, options }) => store.set(name, value, options));
         } catch {

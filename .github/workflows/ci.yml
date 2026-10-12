@@ -13,10 +13,24 @@ jobs:
         with:
           node-version: 22
       - run: npm install --no-audit --no-fund
-      - run: npm run typecheck
+      - name: Typecheck
+        run: npx tsc --noEmit --pretty false 2>&1 | tee typecheck.txt; test ${PIPESTATUS[0]} -eq 0
+        shell: bash
       - run: npm test
-      - run: npm run build
+        if: always()
+      - name: Build
+        if: always()
+        run: npm run build 2>&1 | tee build.txt; test ${PIPESTATUS[0]} -eq 0
+        shell: bash
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: build-placeholder
           NEXT_PUBLIC_APP_URL: https://bluerig.ca
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ci-output
+          path: |
+            typecheck.txt
+            build.txt
+          if-no-files-found: ignore
