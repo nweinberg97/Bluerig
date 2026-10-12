@@ -1,8 +1,8 @@
 import { newProfile } from '../src/lib/profile';
-import type { BusinessProfile } from '../src/lib/profile';
+import type { BusinessProfile, ProfileInput } from '../src/lib/profile';
 
 /** A fictional shop used across tests. */
-export function shop(over: Partial<BusinessProfile> = {}): BusinessProfile {
+export function shop(over: ProfileInput = {}): BusinessProfile {
   return newProfile({
     brand: { name: 'Northline', tagline: 'Mechanical', logoUrl: null, primary: '#2E7D4A', accent: '#F7A928', ink: '#10251A' },
     phone: '604-555-0142',

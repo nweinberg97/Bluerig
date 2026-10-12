@@ -64,14 +64,18 @@ export async function myBusinesses(): Promise<{ id: string; slug: string; name: 
   });
 }
 
-/** Snapshot the draft as the live site and keep a version for undo. */
+/**
+ * Make a profile the live site and keep a version for undo. The draft is left alone
+ * so a quick action from the phone (which publishes only the fields it touched)
+ * never pushes someone else's half-finished edits.
+ */
 export async function publish(a: Access, profile: BusinessProfile, label = 'Published') {
   const sb = adminClient();
   const now = new Date();
   const clean = pruneExpired(profile, now);
   const { error } = await sb
     .from('businesses')
-    .update({ published: clean, draft: clean, published_at: now.toISOString(), ...(a.row.status === 'preview' ? {} : {}) })
+    .update({ published: clean, published_at: now.toISOString(), status: 'live' })
     .eq('id', a.row.id);
   if (error) throw error;
   await sb.from('site_versions').insert({ business_id: a.row.id, profile: clean, label, created_by: a.userId });

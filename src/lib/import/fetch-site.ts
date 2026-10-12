@@ -174,7 +174,7 @@ export async function fetchSite(input: string): Promise<{ pages: PageText[]; ski
 
   // Count colours in the first two stylesheets too (brand colours usually live there).
   const $ = cheerio.load(home.body);
-  const sheets = $('link[rel="stylesheet"]').map((_, el) => $(el).attr('href')).get().slice(0, 2);
+  const sheets = $('link[rel="stylesheet"]').map((_, el) => $(el).attr('href') ?? '').get().filter(Boolean).slice(0, 2);
   for (const href of sheets) {
     try {
       const u = new URL(href, root);

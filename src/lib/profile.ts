@@ -141,7 +141,9 @@ export function weekdayHours(open = 8, close = 17): WeekHours {
   return { Mon: [open, close], Tue: [open, close], Wed: [open, close], Thu: [open, close], Fri: [open, close], Sat: null, Sun: null };
 }
 
-export function newProfile(partial: Partial<BusinessProfile> = {}): BusinessProfile {
+export type ProfileInput = Omit<Partial<BusinessProfile>, 'brand' | 'copy' | 'facts'> & { brand?: Partial<Brand>; copy?: Partial<SiteCopy>; facts?: Partial<Facts> };
+
+export function newProfile(partial: ProfileInput = {}): BusinessProfile {
   const brand = { ...DEFAULT_BRAND, ...(partial.brand ?? {}) };
   const city = partial.city ?? 'Your Town';
   return {
@@ -324,4 +326,24 @@ export function addArea(list: string[], input: string): string[] {
 export function formatPrice(x: PriceItem): string {
   if (x.amount === null) return 'Call for a quote';
   return Number.isInteger(x.amount) ? `$${x.amount}` : `$${x.amount.toFixed(2)}`;
+}
+
+export type ProfileKey = Exclude<keyof BusinessProfile, 'version'>;
+export const EDITABLE_KEYS: ProfileKey[] = [
+  'brand', 'phone', 'email', 'city', 'province', 'towns', 'services', 'hours', 'overrides', 'special',
+  'availability', 'copy', 'facts', 'prices', 'jobs', 'reviewsUrl', 'googlePlaceId', 'bookingUrl', 'timezone', 'confirm',
+];
+
+/** Take only some fields from the draft onto the live profile (for one-tap updates). */
+export function mergeFields(live: BusinessProfile | null, draft: BusinessProfile, keys: ProfileKey[]): BusinessProfile {
+  if (!live) return draft;
+  const out = { ...live } as Record<string, unknown>;
+  for (const k of keys) out[k] = draft[k];
+  return out as unknown as BusinessProfile;
+}
+
+/** Which top-level fields differ between two profiles. */
+export function changedKeys(a: BusinessProfile | null, b: BusinessProfile): ProfileKey[] {
+  if (!a) return EDITABLE_KEYS.slice();
+  return EDITABLE_KEYS.filter((k) => JSON.stringify(a[k]) !== JSON.stringify(b[k]));
 }

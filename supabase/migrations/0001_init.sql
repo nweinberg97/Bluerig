@@ -100,11 +100,11 @@ create trigger businesses_touch before update on public.businesses
 
 -- Field-level edits: two people editing different fields never overwrite each other.
 -- Same field: last write wins, and the editor shows who changed it.
+-- Called only by the server (service role) after it has checked the user's access.
 create or replace function public.apply_draft_patch(b uuid, path text[], value jsonb)
 returns timestamptz language plpgsql security definer set search_path = public as $$
 declare ts timestamptz;
 begin
-  if not public.is_member(b) then raise exception 'not allowed' using errcode = '42501'; end if;
   if array_length(path, 1) is null or array_length(path, 1) > 6 then raise exception 'bad path'; end if;
   if path[1] not in ('brand','phone','email','city','province','towns','services','hours','overrides','special',
                      'availability','copy','facts','prices','jobs','reviewsUrl','googlePlaceId','bookingUrl','timezone','confirm') then
@@ -115,8 +115,8 @@ begin
   return ts;
 end $$;
 
-revoke all on function public.apply_draft_patch(uuid, text[], jsonb) from public, anon;
-grant execute on function public.apply_draft_patch(uuid, text[], jsonb) to authenticated;
+revoke all on function public.apply_draft_patch(uuid, text[], jsonb) from public, anon, authenticated;
+grant execute on function public.apply_draft_patch(uuid, text[], jsonb) to service_role;
 
 -- ---------- row level security ----------
 -- Public pages and admin tools use the service role on the server. Signed-in owners

@@ -1,5 +1,5 @@
 /* The shop website. Colours come from the brand kit via CSS variables set on .site. */
-.site{--white:#FFFFFF;--muted:#5A6A5F;--hot:#C2410C;--flag:#FFF3C4;--flagl:#E2B230;--blu:#4C8DFF;--f:var(--font-archivo),"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif}
+.site{--white:#FFFFFF;--muted:#5A6A5F;--hot:#C2410C;--flag:#FFF3C4;--flagl:#E2B230;--blu:#4C8DFF;--f:var(--font-archivo,"Archivo"),"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif}
 .site a{color:inherit}
 .site *{box-sizing:border-box}
 .site{container-type:inline-size;background:var(--paper);color:var(--ink);font-family:var(--f);font-size:16px;line-height:1.55;position:relative}
@@ -207,3 +207,4 @@
 .editing .brand .edt{top:50%;right:-8px;transform:translate(100%,-50%)}
 .editing .svc:hover .more,.editing .svc:focus-within .more{display:block}
 .collab-ring{box-shadow:0 0 0 2px var(--c,#4FD1A0),0 0 0 8px rgba(79,209,160,.18)!important}
+.editing .alert .edt,.editing .special .edt{top:50%;transform:translateY(-50%);right:6px}
