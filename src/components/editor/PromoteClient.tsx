@@ -128,7 +128,7 @@ export function PromoteClient({ id, profile, siteUrl, live }: { id: string; prof
           ) : (
             <p className="note" style={{ margin: 0 }}>Download each {f.sides ? 'side' : 'picture'} under its preview.</p>
           )}
-          {(words || cat === 'social') && (
+          {words && (
             <details className="pr-more">
               <summary>More options</summary>
               <div style={{ display: 'grid', gap: 12, marginTop: 10 }}>
