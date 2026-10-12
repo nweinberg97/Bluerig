@@ -55,7 +55,7 @@ a { color: inherit; }
 .qb svg { width: 16px; height: 16px; }
 .qb.hot { border-color: #b42318; color: #fecaca; }
 .qb.hot.on { background: #b42318; color: #fff; }
-.cmd { display: flex; align-items: center; gap: 6px; background: var(--st2); border: 1px solid var(--stl); border-radius: 12px; padding: 4px 4px 4px 12px; flex: 1 1 340px; max-width: 560px; }
+.cmd { display: flex; align-items: center; gap: 6px; background: var(--st2); border: 1px solid var(--stl); border-radius: 12px; padding: 4px 4px 4px 12px; flex: 1 1 300px; max-width: 440px; }
 .cmd svg { width: 16px; height: 16px; color: var(--stm); flex: none; }
 .cmd input { flex: 1; min-width: 0; background: transparent; border: 0; color: var(--stf); outline: none; font-size: 14.5px; padding: 6px 0; }
 .cmd button { background: var(--blu); color: #fff; border: 0; border-radius: 9px; padding: 7px 12px; font-weight: 700; font-size: 13.5px; }

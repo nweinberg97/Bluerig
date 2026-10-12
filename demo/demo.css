@@ -1,0 +1,17 @@
+.demo-nav { position: fixed; z-index: 95; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 4px; align-items: center; background: rgba(11, 16, 21, 0.94); border: 1px solid #26313c; border-radius: 999px; padding: 5px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4); max-width: calc(100vw - 16px); overflow-x: auto; scrollbar-width: none; }
+.demo-nav button { border: 0; background: transparent; color: #c9d3dc; border-radius: 999px; padding: 7px 12px; font-weight: 650; font-size: 13px; white-space: nowrap; }
+.demo-nav button[aria-pressed='true'] { background: #4c8dff; color: #fff; }
+.demo-nav .demo-tag { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #ffc266; padding: 0 8px 0 10px; white-space: nowrap; }
+.demo-nav .demo-reset { color: #92a0ad; }
+.demo-phone { min-height: 100dvh; display: grid; justify-items: center; align-content: start; gap: 14px; padding: 24px 12px 90px; }
+.demo-phone-frame { width: min(400px, 100%); border-radius: 36px; border: 10px solid #000; overflow: hidden; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5); }
+.demo-phone-frame .qa { min-height: 760px; }
+.demo-phone-note { color: #92a0ad; font-size: 14px; max-width: 400px; text-align: center; margin: 0; }
+@media (max-width: 600px) { .demo-phone { padding: 0 0 90px; } .demo-phone-frame { border: 0; border-radius: 0; box-shadow: none; } .demo-nav .demo-tag { display: none; } }
+.toast { bottom: 76px !important; }
+
+.demo-file { position: fixed; inset: 0; z-index: 99; background: rgba(3, 6, 9, 0.7); display: grid; place-items: center; padding: 16px; }
+.demo-file-in { background: #fff; color: #111a22; border-radius: 16px; padding: 16px; width: min(640px, 100%); max-height: 92vh; overflow: auto; display: grid; gap: 12px; }
+.demo-file-in p { margin: 0; font-size: 14px; }
+.demo-file-in svg { display: block; height: auto; border-radius: 6px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2); }
+.demo-file-in button { justify-self: end; border: 0; background: #111a22; color: #fff; border-radius: 10px; padding: 8px 14px; font-weight: 700; }

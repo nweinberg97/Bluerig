@@ -106,7 +106,11 @@ export function endOfLocalDay(now: Date, timeZone: string): string {
   let t = now.getTime();
   for (let i = 0; i < 48 * 4; i++) {
     t += 15 * 60 * 1000;
-    if (localDate(new Date(t), timeZone) !== today) return new Date(t - 60 * 1000).toISOString();
+    if (localDate(new Date(t), timeZone) !== today) {
+      // step back to the last minute that's still today
+      while (localDate(new Date(t - 60 * 1000), timeZone) !== today) t -= 60 * 1000;
+      return new Date(t - 60 * 1000).toISOString();
+    }
   }
   return new Date(now.getTime() + 12 * 3600 * 1000).toISOString();
 }

@@ -47,6 +47,7 @@ test('emergency presets always end', () => {
   const tz = 'America/Vancouver';
   const tonight = new Date(untilFromPreset('tonight', NOW, tz));
   assert.equal(localDate(tonight, tz), '2026-10-11');
+  assert.ok(tonight.getTime() > Date.parse('2026-10-12T06:57:00Z')); // 11:57pm PDT or later
   assert.ok(tonight > NOW);
   const morning = untilFromPreset('morning', NOW, tz);
   assert.equal(morning, '2026-10-12T14:00:00.000Z'); // 7am PDT
