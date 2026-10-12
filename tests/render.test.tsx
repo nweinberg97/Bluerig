@@ -33,7 +33,7 @@ test('edit mode marks words editable and blocks clickable', () => {
   const html = renderToStaticMarkup(<Site profile={shop()} mode="edit" now={NOW} />);
   assert.match(html, /data-k="copy.headlineA"/);
   assert.match(html, /contentEditable="plaintext-only"|contenteditable="plaintext-only"/);
-  assert.match(html, /data-panel="status"/);
+  assert.match(html, /data-panel="prices"/);
   assert.match(html, /data-panel="photos"/);
   assert.match(html, /Add a photo of a job/);
 });

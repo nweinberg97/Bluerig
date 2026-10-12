@@ -4,21 +4,17 @@ import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Site } from '../src/components/Site';
 import { EditorClient } from '../src/components/editor/EditorClient';
-import { QuickActions } from '../src/components/editor/QuickActions';
 import { PromoteClient } from '../src/components/editor/PromoteClient';
 import { installMockApi, SITE_URL } from './mock-api';
 import { store } from './store';
-import { importedProfile } from './data';
 
 installMockApi();
 
-type Tab = 'site' | 'editor' | 'phone' | 'promote' | 'preview';
+type Tab = 'editor' | 'site' | 'promote';
 const TABS: [Tab, string][] = [
-  ['site', 'Customer’s view'],
-  ['editor', 'Editor'],
-  ['phone', 'Phone updates'],
-  ['promote', 'Promote'],
-  ['preview', 'From the importer'],
+  ['editor', 'Edit my site'],
+  ['site', 'Customer view'],
+  ['promote', 'Flyers & posts'],
 ];
 const ME = { id: 'me', email: 'owner@northline.example' };
 
@@ -44,7 +40,7 @@ function App() {
     };
     const nav = (e: Event) => {
       const href = String((e as CustomEvent).detail);
-      go(href.endsWith('/quick') ? 'phone' : href.endsWith('/promote') ? 'promote' : href.startsWith('/edit') ? 'editor' : 'site');
+      go(href.endsWith('/promote') ? 'promote' : 'editor');
     };
     const sw = (e: Event) => go((e as CustomEvent).detail as Tab);
     const upd = () => force((n) => n + 1);
@@ -82,31 +78,9 @@ function App() {
         </main>
       )}
       {tab === 'editor' && <EditorClient key={mountKey} id="demo" slug="northline" siteUrl={SITE_URL} previewUrl="#preview" live role="owner" me={ME} draft={s.draft} published={s.published} />}
-      {tab === 'phone' && (
-        <div className="demo-phone">
-          <div className="demo-phone-frame">
-            <QuickActions key={mountKey} id="demo" siteUrl={SITE_URL} live me={ME} draft={s.draft} published={s.published} />
-          </div>
-          <p className="demo-phone-note">This is the screen a tech opens on their phone. Each button updates the live site right away.</p>
-        </div>
-      )}
       {tab === 'promote' && <PromoteClient key={mountKey} id="demo" profile={s.published} siteUrl={SITE_URL} live />}
-      {tab === 'preview' && (
-        <main className="public">
-          <div className="pv-banner">
-            <div className="in">
-              <span>
-                <b>Private preview for Northline.</b> Built by pasting their old website into Bluerig’s admin page. Only people with the link can see it. 4 things to
-                check are marked in yellow.
-              </span>
-              <button className="btn go" onClick={() => window.dispatchEvent(new CustomEvent('demo:tab', { detail: 'editor' }))}>This is my business</button>
-            </div>
-          </div>
-          <Site profile={importedProfile(now)} mode="preview" now={now} />
-        </main>
-      )}
       <nav className="demo-nav" aria-label="Demo screens">
-        <span className="demo-tag">Demo · made-up shop</span>
+        <span className="demo-tag">Demo</span>
         {TABS.map(([t, label]) => (
           <button key={t} aria-pressed={tab === t} onClick={() => window.dispatchEvent(new CustomEvent('demo:tab', { detail: t }))}>
             {label}

@@ -27,7 +27,7 @@ export default async function Dashboard() {
                   <td><span className={`pill ${b.status}`}>{b.status === 'live' ? 'Live' : 'Not live yet'}</span></td>
                   <td>{b.role}</td>
                   <td style={{ textAlign: 'right' }}>
-                    <Link href={`/edit/${b.id}`}>Edit</Link> · <Link href={`/edit/${b.id}/quick`}>Phone</Link>
+                    <Link href={`/edit/${b.id}`}>Open</Link>
                   </td>
                 </tr>
               ))}

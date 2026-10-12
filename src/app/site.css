@@ -108,19 +108,6 @@
 /* flags (unconfirmed facts) */
 .flag{box-shadow:0 0 0 2px var(--flagl)!important;background-color:var(--flag)!important;border-radius:10px}
 .ftag{display:inline-block;background:var(--flagl);color:#3A2A00;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;border-radius:5px;padding:2px 6px;margin-left:8px;vertical-align:middle;font-stretch:100%;font-style:normal}
-/* editing affordances */
-.editing [data-k]{border-radius:6px;cursor:text;transition:box-shadow .15s,background .15s;text-decoration:underline dotted rgba(76,141,255,.7);text-decoration-thickness:2px;text-underline-offset:.18em}
-.editing h1 [data-k],.editing h2[data-k]{text-decoration-thickness:3px;text-underline-offset:.1em}
-.editing [data-k]:focus{text-decoration:none}
-.editing h1 [data-k],.editing h2[data-k],.editing h3[data-k]{overflow-wrap:normal}
-.editing [data-k]:hover{box-shadow:0 0 0 2px rgba(76,141,255,.45)}
-.editing [data-k]:focus{outline:none;box-shadow:0 0 0 2px var(--blu);background:rgba(76,141,255,.07)}
-.editing [data-k]:empty::before{content:attr(data-ph);color:#9AABA7}
-.editing .ed{cursor:pointer;position:relative}
-.editing .ed:hover{box-shadow:0 0 0 2px rgba(76,141,255,.5)}
-.editing .edt{position:absolute;top:-10px;right:10px;background:var(--blu);color:#fff;font:700 10.5px/1 var(--f);letter-spacing:.05em;text-transform:uppercase;padding:4px 7px;border-radius:6px;z-index:3;opacity:0;transition:opacity .15s;pointer-events:none;font-stretch:100%}
-.editing .ed:hover>.edt,.editing .ed:focus-visible>.edt,.editing .ed:not(.callbtn)>.edt{opacity:1}
-.editing .brand.ed>.edt{top:50%;bottom:auto;left:auto;right:-8px;transform:translate(100%,-50%)}
 
 .site .callbtn,.site .ghostbtn{text-decoration:none;cursor:pointer}
 .nav a{text-decoration:none}
@@ -201,9 +188,8 @@
 .editing [data-k]:empty::before{content:attr(data-ph);color:#9AABA7}
 .editing [data-panel]{cursor:pointer;position:relative}
 .editing [data-panel]:hover{box-shadow:0 0 0 2px rgba(76,141,255,.5)}
-.editing .edt{position:absolute;top:-10px;right:10px;background:var(--blu);color:#fff;font:700 10.5px/1 var(--f);letter-spacing:.05em;text-transform:uppercase;padding:4px 7px;border-radius:6px;z-index:3;pointer-events:none;font-stretch:100%;opacity:.95}
-.editing .callbtn .edt{opacity:0}
-.editing .callbtn:hover .edt{opacity:1}
+.editing .edt{position:absolute;top:-10px;right:10px;background:var(--blu);color:#fff;font:700 10.5px/1 var(--f);letter-spacing:.05em;text-transform:uppercase;padding:4px 7px;border-radius:6px;z-index:3;pointer-events:none;font-stretch:100%;opacity:0;transition:opacity .15s}
+.editing [data-panel]:hover>.edt,.editing [data-panel]:focus-visible>.edt{opacity:1}
 .editing .brand .edt{top:50%;right:-8px;transform:translate(100%,-50%)}
 .editing .svc:hover .more,.editing .svc:focus-within .more{display:block}
 .collab-ring{box-shadow:0 0 0 2px var(--c,#4FD1A0),0 0 0 8px rgba(79,209,160,.18)!important}

@@ -4,7 +4,7 @@ import { CATEGORIES, FORMATS, pageCount, promoContent, promoTopics, renderPromo,
 import { shop, NOW } from './fixtures';
 
 test('the five categories the owner asked for', () => {
-  assert.deepEqual(CATEGORIES.map((c) => c.label), ['Social media', 'Flyers', 'Business cards', 'Magnets', 'Yard signs']);
+  assert.deepEqual(CATEGORIES.map((c) => c.label), ['Social media posts', 'Flyers', 'Business cards', 'Magnets', 'Yard signs']);
   for (const c of CATEGORIES) assert.ok(FORMATS.some((f) => f.category === c.id), c.id);
 });
 

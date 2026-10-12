@@ -24,11 +24,11 @@ export interface PromoFormat {
 }
 
 export const CATEGORIES: { id: PromoCategory; label: string; hint: string }[] = [
-  { id: 'social', label: 'Social media', hint: 'Facebook and Instagram' },
-  { id: 'flyer', label: 'Flyers', hint: 'Mailbox drops and job sites' },
-  { id: 'card', label: 'Business cards', hint: 'For every truck' },
-  { id: 'magnet', label: 'Magnets', hint: 'Fridges and trucks' },
-  { id: 'sign', label: 'Yard signs', hint: 'Outside every job' },
+  { id: 'social', label: 'Social media posts', hint: 'For Facebook and Instagram' },
+  { id: 'flyer', label: 'Flyers', hint: 'To hand out or drop in mailboxes' },
+  { id: 'card', label: 'Business cards', hint: 'For every truck and toolbox' },
+  { id: 'magnet', label: 'Magnets', hint: 'For fridges and truck doors' },
+  { id: 'sign', label: 'Yard signs', hint: 'For the lawn at every job' },
 ];
 
 export const FORMATS: PromoFormat[] = [

@@ -3,10 +3,10 @@
 // The quick panels. Each one edits one kind of fact in plain words. Used by the
 // desktop editor (as a side panel) and the phone quick-actions screen (as a sheet).
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { BusinessProfile, DayHours, Job, Override, PriceItem, ProfileKey, Service } from '@/lib/profile';
-import { DAYS, addArea, digits, formatPhone, formatPrice, isPostalArea, LIMITS, normalizeArea, uid } from '@/lib/profile';
-import { FULL, fmtDate, fmtHour, fmtRange, localDate, untilFromPreset, type UntilPreset } from '@/lib/time';
+import { DAYS, addArea, digits, formatPhone, isPostalArea, LIMITS, normalizeArea, uid } from '@/lib/profile';
+import { FULL, fmtHour, fmtRange, localDate, untilFromPreset, type UntilPreset } from '@/lib/time';
 import { TOWNS } from '@/lib/places-ca';
 import type { Confirmation } from '@/lib/checks';
 import { reviewLink } from '@/lib/reviews';
@@ -22,9 +22,8 @@ export interface PanelProps {
   now: Date;
   itemId?: string;
   prefill?: Record<string, unknown>;
+  /** Save a field. On a live site this goes live straight away (with Undo); otherwise it's kept for launch. */
   save: <K extends ProfileKey>(key: K, value: BusinessProfile[K]) => Promise<void> | void;
-  /** Save, then put just these fields live right away (phone quick actions, emergency mode). */
-  saveLive: (keys: ProfileKey[]) => Promise<string | null>;
   close: (msg?: string) => void;
   /** For the publish-check panel. */
   confirm?: Confirmation[];
@@ -72,7 +71,7 @@ const PRESETS: [UntilPreset, string][] = [
   ['24h', 'For 24 hours'],
 ];
 
-export function StatusPanel({ p, now, save, saveLive, close, prefill, live }: PanelProps) {
+export function StatusPanel({ p, now, save, close, prefill }: PanelProps) {
   const isOn = p.availability.kind !== 'normal' && !!p.availability.until && Date.parse(p.availability.until) > now.getTime();
   const [kind, setKind] = useState<'normal' | 'booked' | 'emergency'>((prefill?.status as 'emergency') ?? (isOn ? p.availability.kind : 'emergency'));
   const [until, setUntil] = useState<UntilPreset>((prefill?.until as UntilPreset) ?? (kind === 'booked' ? 'week' : 'tonight'));
@@ -82,22 +81,22 @@ export function StatusPanel({ p, now, save, saveLive, close, prefill, live }: Pa
     setBusy(true);
     const value = k === 'normal' ? { kind: 'normal' as const, until: null } : { kind: k, until: untilFromPreset(until, new Date(), p.timezone) };
     await save('availability', value);
-    const e = live ? await saveLive(['availability']) : null;
     setBusy(false);
-    if (e) setErr(e);
-    else close(k === 'emergency' ? 'Emergency mode is on. Your site shows a red “call now” bar.' : k === 'booked' ? 'Your site says you’re booked up.' : 'Back to normal.');
+    close(k === 'emergency' ? 'Emergency calls are on. Your site shows a red “Call now” bar.' : k === 'booked' ? 'Your site now says you’re booked up.' : 'Emergency calls are off.');
   }
   return (
     <Shell
-      title="Emergency mode"
-      sub="For cold snaps and heat waves. It always switches itself off, so it never says “call now” at 3am by accident."
+      title="Taking emergency calls?"
+      sub="Turn this on during a cold snap or heat wave. Your site shows a red “Call now” bar, and it turns itself off when you say."
       close={() => close()}
       footer={
         <>
-          {isOn && <Btn onClick={() => go('normal')} disabled={busy}>Turn off now</Btn>}
-          <Btn kind={kind === 'emergency' ? 'danger' : 'primary'} onClick={() => go()} disabled={busy}>
-            {busy ? 'Updating…' : kind === 'normal' ? 'Save' : live ? 'Turn on now' : 'Save'}
-          </Btn>
+          {isOn && <Btn onClick={() => go('normal')} disabled={busy}>Turn off</Btn>}
+          {kind !== 'normal' && (
+            <Btn kind={kind === 'emergency' ? 'danger' : 'primary'} onClick={() => go()} disabled={busy}>
+              {busy ? 'Saving…' : isOn ? 'Save' : 'Turn on'}
+            </Btn>
+          )}
         </>
       }
     >
@@ -108,16 +107,16 @@ export function StatusPanel({ p, now, save, saveLive, close, prefill, live }: Pa
         </div>
       )}
       <div className="field">
-        What should your site say?
+        What should customers see?
         <div className="seg">
-          <button type="button" className="hot" aria-pressed={kind === 'emergency'} onClick={() => { setKind('emergency'); setUntil('tonight'); }}>Taking emergency calls</button>
-          <button type="button" aria-pressed={kind === 'booked'} onClick={() => { setKind('booked'); setUntil('week'); }}>Booked up</button>
-          <button type="button" aria-pressed={kind === 'normal'} onClick={() => setKind('normal')}>Normal</button>
+          <button type="button" className="hot" aria-pressed={kind === 'emergency'} onClick={() => { setKind('emergency'); setUntil('tonight'); }}>“Call now for emergencies”</button>
+          <button type="button" aria-pressed={kind === 'booked'} onClick={() => { setKind('booked'); setUntil('week'); }}>“We’re booked up this week”</button>
+
         </div>
       </div>
       {kind !== 'normal' && (
         <div className="field">
-          Switch it off
+          Turn it off
           <div className="seg">
             {(kind === 'booked' ? ([['week', 'End of this week'], ['24h', 'For 24 hours']] as [UntilPreset, string][]) : PRESETS).map(([k, l]) => (
               <button type="button" key={k} aria-pressed={until === k} onClick={() => setUntil(k)}>{l}</button>
@@ -126,7 +125,6 @@ export function StatusPanel({ p, now, save, saveLive, close, prefill, live }: Pa
         </div>
       )}
       {kind === 'emergency' && <p className="note">Your site will show a red bar at the very top: “Taking emergency calls right now · Tap to call {p.phone}”.</p>}
-      {!live && <p className="note">Your site isn’t live yet, so this saves to your draft.</p>}
       {err && <p className="err">{err}</p>}
     </Shell>
   );
@@ -145,12 +143,12 @@ export function SpecialPanel({ p, now, save, close, prefill }: PanelProps) {
     if (!ends) return setErr('Pick the last day, so the deal takes itself down.');
     if (ends < today) return setErr('That day has already passed.');
     void save('special', { title: title.trim(), detail: detail.trim() || undefined, ends });
-    close('Deal added. Update your website to show it.');
+    close('Your deal is on your website.');
   }
   return (
     <Shell
       title="Post a deal"
-      sub="Shows as a bar across the top of your site, then hides itself after the last day."
+      sub="Shows across the top of your site and takes itself down after the last day."
       close={() => close()}
       footer={
         <>
@@ -169,7 +167,7 @@ export function SpecialPanel({ p, now, save, close, prefill }: PanelProps) {
 
 // ---------- service areas ----------
 
-export function AreasPanel({ p, save, saveLive, close, prefill, live }: PanelProps) {
+export function AreasPanel({ p, save, close, prefill }: PanelProps) {
   const [towns, setTowns] = useState(() => {
     let t = p.towns;
     if (prefill?.add) t = addArea(t, String(prefill.add));
@@ -185,12 +183,11 @@ export function AreasPanel({ p, save, saveLive, close, prefill, live }: PanelPro
     setTowns((t) => addArea(t, a));
     setInput('');
   }
-  async function ok(now = false) {
+  async function ok() {
     setBusy(true);
     await save('towns', towns);
-    const e = now && live ? await saveLive(['towns']) : null;
     setBusy(false);
-    close(e ?? (now && live ? 'Towns updated on your site and for Google.' : 'Towns saved. Update your website to show them.'));
+    close('Your towns are updated. Google sees them too.');
   }
   return (
     <Shell
@@ -198,10 +195,7 @@ export function AreasPanel({ p, save, saveLive, close, prefill, live }: PanelPro
       sub="Type a town or a postal code. Google reads this list, so add the places you want jobs in."
       close={() => close()}
       footer={
-        <>
-          <Btn onClick={() => ok(false)} disabled={busy}>Save</Btn>
-          {live && <Btn kind="primary" onClick={() => ok(true)} disabled={busy}>Save and update site</Btn>}
-        </>
+<Btn kind="primary" onClick={ok} disabled={busy}>Save</Btn>
       }
     >
       <div className="field">
@@ -241,7 +235,7 @@ export function AreasPanel({ p, save, saveLive, close, prefill, live }: PanelPro
 
 // ---------- prices ----------
 
-export function PricesPanel({ p, save, saveLive, close, prefill, live }: PanelProps) {
+export function PricesPanel({ p, save, close, prefill }: PanelProps) {
   const [rows, setRows] = useState<PriceItem[]>(() => {
     const r = p.prices.length ? p.prices : [{ id: uid(), label: 'Diagnostic fee', amount: null }];
     if (prefill?.label) {
@@ -255,15 +249,13 @@ export function PricesPanel({ p, save, saveLive, close, prefill, live }: PanelPr
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const set = (id: string, patch: Partial<PriceItem>) => setRows((r) => r.map((x) => (x.id === id ? { ...x, ...patch } : x)));
-  async function ok(now: boolean) {
+  async function ok() {
     const clean = rows.filter((x) => x.label.trim());
     if (clean.some((x) => x.amount !== null && !(x.amount >= 0))) return setErr('Check the prices: one isn’t a number.');
     setBusy(true);
     await save('prices', clean);
-    const e = now && live ? await saveLive(['prices']) : null;
     setBusy(false);
-    if (e) setErr(e);
-    else close(now && live ? 'Prices updated on your site.' : 'Prices saved. Update your website to show them.');
+    close('Your prices are updated.');
   }
   return (
     <Shell
@@ -271,10 +263,7 @@ export function PricesPanel({ p, save, saveLive, close, prefill, live }: PanelPr
       sub="Tap a number, change it, save. Leave it blank for “Call for a quote”."
       close={() => close()}
       footer={
-        <>
-          <Btn onClick={() => ok(false)} disabled={busy}>Save</Btn>
-          {live && <Btn kind="primary" onClick={() => ok(true)} disabled={busy}>Save and update site</Btn>}
-        </>
+<Btn kind="primary" onClick={ok} disabled={busy}>Save</Btn>
       }
     >
       <div className="list">
@@ -309,14 +298,13 @@ export function PricesPanel({ p, save, saveLive, close, prefill, live }: PanelPr
       </div>
       {rows.length < LIMITS.prices && <Btn onClick={() => setRows((r) => [...r, { id: uid(), label: '', amount: null }])}>+ Add a price</Btn>}
       {err && <p className="err">{err}</p>}
-      <p className="note">You’ll be asked to double-check any price that changed before it goes live.</p>
     </Shell>
   );
 }
 
 // ---------- recent work photos ----------
 
-export function PhotosPanel({ id, p, now, save, saveLive, close, live, itemId }: PanelProps) {
+export function PhotosPanel({ id, p, now, save, close, itemId }: PanelProps) {
   const editing = itemId && itemId !== 'new' ? p.jobs.find((j) => j.id === itemId) : undefined;
   const [after, setAfter] = useState<string | null>(editing?.photoUrl ?? null);
   const [before, setBefore] = useState<string | null>(editing?.beforeUrl ?? null);
@@ -346,10 +334,8 @@ export function PhotosPanel({ id, p, now, save, saveLive, close, live, itemId }:
     const jobs = editing ? p.jobs.map((j) => (j.id === job.id ? job : j)) : [job, ...p.jobs].slice(0, LIMITS.jobs);
     setBusy('save');
     await save('jobs', jobs);
-    const e = live ? await saveLive(['jobs']) : null;
     setBusy('');
-    if (e) setErr(e);
-    else close(live ? 'Posted to your site under “Recent work”.' : 'Saved to your draft.');
+    close('Posted under “Recent work” on your site.');
   }
   const drop = (which: 'after' | 'before', url: string | null, label: string) => (
     <label className="drop">
@@ -366,14 +352,14 @@ export function PhotosPanel({ id, p, now, save, saveLive, close, live, itemId }:
   return (
     <Shell
       title={editing ? 'Edit work photo' : 'Post a job'}
-      sub="A real photo of real work beats any stock photo. Takes 30 seconds."
+      sub="A real photo of a finished job. Customers trust it more than any stock photo."
       close={() => close()}
       footer={
         <>
           {editing && (
             <Btn onClick={() => { void save('jobs', p.jobs.filter((j) => j.id !== editing.id)); close('Photo removed.'); }}>Remove</Btn>
           )}
-          <Btn kind="primary" onClick={ok} disabled={!!busy}>{busy === 'save' ? 'Posting…' : live ? 'Post it' : 'Save'}</Btn>
+          <Btn kind="primary" onClick={ok} disabled={!!busy}>{busy === 'save' ? 'Posting…' : 'Post it'}</Btn>
         </>
       }
     >
@@ -485,10 +471,10 @@ export function HoursPanel({ p, now, save, close, prefill }: PanelProps) {
   function ok() {
     void save('hours', h);
     void save('overrides', ovs);
-    close('Hours saved. Update your website to show them.');
+    close('Your hours are updated.');
   }
   return (
-    <Shell title="Hours and days off" sub="Days off override your regular hours, then your normal week comes back by itself." close={() => close()} footer={<Btn kind="primary" onClick={ok}>Save hours</Btn>}>
+    <Shell title="Hours and days off" sub="Add holidays and days off here. Your normal hours come back by themselves after." close={() => close()} footer={<Btn kind="primary" onClick={ok}>Save hours</Btn>}>
       <div className="hours-grid">
         {DAYS.map((d) => {
           const v = h[d];
@@ -564,7 +550,7 @@ export function BrandPanel({ id, p, save, close }: PanelProps) {
       title="Logo, name and colours"
       sub="Used on your website and on every post, flyer, card and sign."
       close={() => close()}
-      footer={<Btn kind="primary" onClick={() => { if (!b.name.trim()) return setErr('Your business needs a name.'); void save('brand', { ...b, name: b.name.trim() }); close('Brand saved.'); }}>Save</Btn>}
+      footer={<Btn kind="primary" onClick={() => { if (!b.name.trim()) return setErr('Your business needs a name.'); void save('brand', { ...b, name: b.name.trim() }); close('Saved.'); }}>Save</Btn>}
     >
       <label className="drop">
         {b.logoUrl ? (
@@ -601,7 +587,7 @@ export function PhonePanel({ p, save, close, prefill }: PanelProps) {
     if (digits(a).length < 10) return setErr('That doesn’t look like a full phone number.');
     if (digits(a) !== digits(b)) return setErr('The two numbers don’t match. Check for a typo.');
     void save('phone', formatPhone(a));
-    close('Phone number saved. Update your website to show it.');
+    close('Your phone number is updated.');
   }
   return (
     <Shell title="Phone number" sub={`Customers call this from your site. Now: ${p.phone || 'none'}.`} close={() => close()} footer={<Btn kind="primary" onClick={ok}>Save number</Btn>}>
@@ -667,7 +653,7 @@ export function ReviewsPanel({ id, p, save, close }: PanelProps) {
             <a href="https://developers.google.com/maps/documentation/places/web-service/place-id" target="_blank" rel="noopener">Place ID finder</a>. Your
             star rating and newest reviews then show on your site, credited to Google.
           </p>
-          <Btn onClick={() => { void save('googlePlaceId', placeId || null); close('Google listing saved. Update your website to show your reviews.'); }}>Save listing</Btn>
+          <Btn onClick={() => { void save('googlePlaceId', placeId || null); close('Google listing connected.'); }}>Save listing</Btn>
         </div>
       </details>
     </Shell>
@@ -744,10 +730,10 @@ export function CheckPanel({ confirm = [], onConfirmed, close }: PanelProps) {
   const all = confirm.every((c) => ticked.has(c.id));
   return (
     <Shell
-      title="Quick check before it goes live"
-      sub="These are things customers rely on. Tick each one that’s right."
+      title="Quick check"
+      sub="Customers rely on these. Tick each one that’s right."
       close={() => close()}
-      footer={<Btn kind="primary" disabled={!all} onClick={() => onConfirmed?.([...ticked])}>Update website</Btn>}
+      footer={<Btn kind="primary" disabled={!all} onClick={() => onConfirmed?.([...ticked])}>Yes, all correct</Btn>}
     >
       {confirm.map((c) => (
         <label className="chk" key={c.id}>
@@ -814,20 +800,3 @@ export const PANELS: Record<PanelName, (p: PanelProps) => ReactNode> = {
   check: CheckPanel,
   confirm: ConfirmPanel,
 };
-
-/** Short summaries for the phone quick-actions list. */
-export function useSummaries(p: BusinessProfile, now: Date) {
-  return useMemo(() => {
-    const emergencyOn = p.availability.kind === 'emergency' && !!p.availability.until && Date.parse(p.availability.until) > now.getTime();
-    return {
-      emergencyOn,
-      emergency: emergencyOn
-        ? `On until ${new Date(p.availability.until!).toLocaleString('en-CA', { timeZone: p.timezone, weekday: 'short', hour: 'numeric', minute: '2-digit' })}`
-        : 'Off. Turn on for cold snaps and heat waves.',
-      areas: `${p.towns.length} place${p.towns.length === 1 ? '' : 's'}: ${p.towns.slice(0, 3).join(', ')}${p.towns.length > 3 ? '…' : ''}`,
-      prices: p.prices.length ? p.prices.slice(0, 2).map((x) => `${x.label} ${formatPrice(x)}`).join(' · ') : 'Add your diagnostic fee',
-      photos: p.jobs.length ? `${p.jobs.length} posted · latest ${fmtDate(p.jobs[0].date)}` : 'Post your first job photo',
-      special: p.special ? `${p.special.title} · until ${fmtDate(p.special.ends)}` : 'No deal running',
-    };
-  }, [p, now]);
-}

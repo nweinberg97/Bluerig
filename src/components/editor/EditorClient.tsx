@@ -1,12 +1,15 @@
 'use client';
 
-// Desktop-first editor: the shop's real website, editable in place. Underlined words
-// are typed straight into the page; blocks with a blue tag open a quick panel. Nothing
-// is live until "Update website", and everything can be undone from History.
+// The editor, built for owners who don't use much software. One place to start:
+// "What do you want to do?" with three big actions and a "More" list, next to the
+// real website (click any underlined words to change them). Saving puts the change
+// live straight away, with Undo, so there's no separate "publish" step to learn.
+// On a phone the same screen shows the actions first, with a switch to the site.
 
 import Link from 'next/link';
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import type { BusinessProfile, ProfileKey } from '@/lib/profile';
+import { formatPrice } from '@/lib/profile';
 import type { ChangeProposal } from '@/lib/changes';
 import type { Confirmation } from '@/lib/checks';
 import { Site } from '../Site';
@@ -21,6 +24,8 @@ export interface EditorProps {
   previewUrl: string;
   live: boolean;
   role: string;
+  /** Phone: start on the list of actions (default) or on the site. */
+  startOn?: 'actions' | 'site';
   me: { id: string; email: string | null };
   draft: BusinessProfile;
   published: BusinessProfile | null;
@@ -28,7 +33,7 @@ export interface EditorProps {
 
 type Open = { name: PanelName; itemId?: string; prefill?: Record<string, unknown> } | null;
 
-const EXAMPLES = ['“closed Dec 24 to 26”', '“diagnostic fee is now $119”', '“we now serve Burnaby”', '“emergency calls till tomorrow morning”', '“$50 off tune-ups until Nov 30”'];
+const EXAMPLES = ['closed Dec 24 to 26', 'diagnostic fee is now $119', 'we now serve Burnaby', '$50 off tune-ups until Nov 30'];
 
 /** Turn a parsed change into the panel that shows it, pre-filled. */
 function panelFor(c: ChangeProposal): Open {
@@ -60,31 +65,106 @@ export function EditorClient(props: EditorProps) {
   const { id, me } = props;
   const d = useDraft(id, { draft: props.draft, published: props.published }, me);
   const [open, setOpen] = useState<Open>(null);
-  const [device, setDevice] = useState<'desktop' | 'phone'>('desktop');
+  const [phoneFrame, setPhoneFrame] = useState(false);
   const [view, setView] = useState(false);
+  const [mobileTab, setMobileTab] = useState<'actions' | 'site'>(props.startOn ?? 'actions');
+  const [menu, setMenu] = useState(false);
   const [toast, setToast] = useState<{ text: string; action?: [string, () => void] } | null>(null);
   const [cmd, setCmd] = useState('');
   const [ex, setEx] = useState(0);
-  const [confirm, setConfirm] = useState<Confirmation[]>([]);
-  const [publishing, setPublishing] = useState(false);
+  const [confirm, setConfirm] = useState<{ items: Confirmation[]; keys: ProfileKey[] | null }>({ items: [], keys: null });
+  const [launching, setLaunching] = useState(false);
   const [fbar, setFbar] = useState<{ top: number; left: number; label: string; n: number; max: number } | null>(null);
   const canvas = useRef<HTMLDivElement>(null);
   const now = useRef(new Date()).current;
   const live = props.live || !!d.published;
 
-  const say = useCallback((text: string, action?: [string, () => void]) => {
-    setToast({ text, action });
-  }, []);
+  const say = useCallback((text: string, action?: [string, () => void]) => setToast({ text, action }), []);
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(() => setToast(null), 6000);
+    const t = setTimeout(() => setToast(null), 7000);
     return () => clearTimeout(t);
   }, [toast]);
   useEffect(() => {
     const t = setInterval(() => setEx((x) => x + 1), 3500);
     return () => clearInterval(t);
   }, []);
-  // Open the "things to check" list the first time an imported site is opened.
+  useEffect(() => {
+    if (!menu) return;
+    const h = (e: MouseEvent) => !(e.target as HTMLElement).closest('.menu') && setMenu(false);
+    document.addEventListener('click', h);
+    return () => document.removeEventListener('click', h);
+  }, [menu]);
+
+  // ---------- saving = going live (with Undo) ----------
+  const queue = useRef(new Set<ProfileKey>());
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastMsg = useRef<string | null>(null);
+
+  const publishKeys = useCallback(
+    async (keys: ProfileKey[], confirmed: string[] = [], msg?: string | null) => {
+      const before = keys.map((k) => [k, d.published ? d.published[k] : undefined] as const);
+      const r = await d.publish({ only: keys, confirmed });
+      if (r.ok) {
+        setOpen(null);
+        say(msg ?? 'Saved. It’s on your website now.', [
+          'Undo',
+          async () => {
+            for (const [k, v] of before) if (v !== undefined) await d.setField(k, v as never);
+            const u = await d.publish({ only: keys });
+            say(u.ok ? 'Undone.' : 'Couldn’t undo. Try History under “More”.');
+          },
+        ]);
+      } else if (r.confirm?.length) {
+        setConfirm({ items: r.confirm, keys });
+        setOpen({ name: 'check' });
+      } else say(r.error);
+    },
+    [d, say],
+  );
+
+  /** Called after a field is saved. On a live site, puts it live (batched). */
+  const goLive = useCallback(
+    (key: ProfileKey, msg?: string) => {
+      if (!live) return;
+      queue.current.add(key);
+      if (msg) lastMsg.current = msg;
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = setTimeout(() => {
+        const keys = [...queue.current];
+        queue.current.clear();
+        const m = lastMsg.current;
+        lastMsg.current = null;
+        void publishKeys(keys, [], m);
+      }, 250);
+    },
+    [live, publishKeys],
+  );
+  const goLiveRef = useRef(goLive);
+  goLiveRef.current = goLive;
+
+  const save = useCallback(
+    async <K extends ProfileKey>(key: K, value: BusinessProfile[K]) => {
+      await d.setField(key, value);
+      goLive(key);
+    },
+    [d, goLive],
+  );
+
+  async function launch(confirmed: string[] = []) {
+    setLaunching(true);
+    const r = await d.publish({ confirmed });
+    setLaunching(false);
+    if (r.ok) {
+      setOpen(null);
+      say('Your website is live.', ['See it', () => window.open(props.siteUrl, '_blank')]);
+    } else if (r.confirm?.length) {
+      setConfirm({ items: r.confirm, keys: null });
+      setOpen({ name: 'check' });
+    } else say(r.error);
+  }
+
+  // Imported sites: show what to check the first time.
   useEffect(() => {
     if (Object.keys(props.draft.confirm).length && !props.published) setOpen({ name: 'confirm' });
   }, [props.draft.confirm, props.published]);
@@ -128,7 +208,10 @@ export function EditorClient(props: EditorProps) {
       const el = target(e);
       if (!el) return;
       const path = pathFor(d.draft, el.dataset.k!);
-      if (path) d.commit(path, (el.textContent ?? '').trim());
+      if (path) {
+        d.commit(path, (el.textContent ?? '').trim());
+        goLiveRef.current(path[0] as ProfileKey);
+      }
       d.setFocus(null);
       setFbar(null);
     };
@@ -185,124 +268,141 @@ export function EditorClient(props: EditorProps) {
     }
   }, [d.people, d.draft]);
 
-  // ---------- type a change ----------
+  // ---------- "Something changed? Tell us." ----------
   async function runCmd(e?: FormEvent) {
     e?.preventDefault();
     if (!cmd.trim()) return;
     const r = await fetch(`/api/businesses/${id}/parse`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: cmd }) });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) return say(j.error ?? 'Not sure what to change.');
+    if (!r.ok) return say(j.error ?? 'Not sure what to change. Try one of the options below.');
     setCmd('');
     setOpen(panelFor(j.result.proposal));
-    say(j.result.message);
   }
-
-  // ---------- publish ----------
-  async function publish(confirmed: string[] = []) {
-    setPublishing(true);
-    const r = await d.publish({ confirmed });
-    setPublishing(false);
-    if (r.ok) {
-      setOpen(null);
-      say('Your website is updated.', ['See it', () => window.open(props.siteUrl, '_blank')]);
-    } else if (r.confirm?.length) {
-      setConfirm(r.confirm);
-      setOpen({ name: 'check' });
-    } else say(r.error);
-  }
-  const saveLive = useCallback(
-    async (keys: ProfileKey[]) => {
-      const r = await d.publish({ only: keys });
-      if (r.ok) return null;
-      if (r.confirm?.length) {
-        setConfirm(r.confirm);
-        setOpen({ name: 'check' });
-        return 'Check one thing first.';
-      }
-      return r.error;
-    },
-    [d],
-  );
 
   const Panel = open ? PANELS[open.name] : null;
-  const n = d.changes.length;
   const confirmLeft = Object.keys(d.draft.confirm).length;
-  const emergencyOn = d.draft.availability.kind === 'emergency' && !!d.draft.availability.until && Date.parse(d.draft.availability.until) > Date.now();
+  const p = d.draft;
+  const emergencyOn = p.availability.kind !== 'normal' && !!p.availability.until && Date.parse(p.availability.until) > Date.now();
+  const until = emergencyOn ? new Date(p.availability.until!).toLocaleString('en-CA', { timeZone: p.timezone, weekday: 'short', hour: 'numeric', minute: '2-digit' }) : '';
+  const more: [PanelName, ReactNode, string, string][] = [
+    ['prices', <I.Dollar key="i" />, 'Prices', p.prices.length ? p.prices.slice(0, 2).map((x) => `${x.label} ${formatPrice(x)}`).join(' · ') : 'Add your diagnostic fee'],
+    ['areas', <I.Map key="i" />, 'Towns you serve', `${p.towns.slice(0, 3).join(', ')}${p.towns.length > 3 ? ` +${p.towns.length - 3}` : ''}`],
+    ['special', <I.Tag key="i" />, 'Post a deal', p.special ? p.special.title : 'Like a tune-up special'],
+    ['hours', <I.Clock key="i" />, 'Hours and days off', 'Holidays, vacation, new hours'],
+    ['reviews', <I.Star key="i" />, 'Ask for a review', 'Text a customer your Google link'],
+    ['brand', <I.Badge key="i" />, 'Logo, name and colours', p.brand.logoUrl ? 'Your logo is on the site' : 'Upload your logo'],
+  ];
 
   return (
-    <div>
-      <div className="ed-top">
+    <div className="ed2">
+      <header className="ed-top">
         <div className="ed-bar">
           <div className="ed-who">
-            <Link href="/dashboard" className="logo"><span className="k"><i /></span><span className="hide-sm">Bluerig</span></Link>
-            <span className="vsep" />
+            <Link href="/dashboard" className="logo" aria-label="Bluerig home"><span className="k"><i /></span></Link>
             <span className="ed-doc">
-              <b>{d.draft.brand.name} · website</b>
+              <b>{p.brand.name}</b>
               <small>
-                <span className={`dot ${d.saving ? 'saving' : ''}`} />
-                {d.error || (d.saving ? 'Saving…' : 'Saved')} · {live ? <a href={props.siteUrl} target="_blank" rel="noopener">live</a> : 'not live yet'}
+                <span className={`dot ${d.saving ? 'saving' : ''} ${live ? '' : 'off'}`} />
+                {d.error || (d.saving ? 'Saving…' : live ? 'Your website is live' : 'Not live yet')}
               </small>
             </span>
           </div>
           <div className="ed-tools">
             <div className="faces hide-sm" aria-label="People here now">
-              {d.people.map((p) => (
-                <span key={p.key} className="face" style={{ background: p.color }} title={`${p.name}${p.field ? ' is editing' : ''}`}>{p.name[0]?.toUpperCase()}</span>
+              {d.people.map((x) => (
+                <span key={x.key} className="face" style={{ background: x.color }} title={`${x.name}${x.field ? ' is editing' : ' is here'}`}>{x.name[0]?.toUpperCase()}</span>
               ))}
             </div>
-            <div className="hide-sm" style={{ display: 'flex', gap: 4 }}>
-              <button className={`btn ${device === 'desktop' ? 'on' : ''}`} onClick={() => setDevice('desktop')}>Desktop</button>
-              <button className={`btn ${device === 'phone' ? 'on' : ''}`} onClick={() => setDevice('phone')}>Phone</button>
-            </div>
-            <Link className="btn show-sm" href={`/edit/${id}/quick`}><I.Siren />Quick updates</Link>
-            {props.role !== 'editor' && <button className="btn" onClick={() => setOpen({ name: 'invite' })}><I.Share /><span className="hide-sm">Invite</span></button>}
-            <Link className="btn" href={`/edit/${id}/promote`}><I.Tag /><span className="hide-sm">Promote</span></Link>
-            <button className={`btn ${view ? 'on' : ''}`} onClick={() => setView((v) => !v)}>{view ? <I.Pen /> : <I.Eye />}<span className="hide-sm">{view ? 'Back to editing' : 'Customer view'}</span></button>
-            {confirmLeft > 0 && <button className="btn" onClick={() => setOpen({ name: 'confirm' })}>Check {confirmLeft} things</button>}
-            <button className="btn primary" disabled={(!n && live) || publishing} onClick={() => publish()}>
-              {publishing ? 'Updating…' : live ? (n ? `Update website · ${n}` : 'Website up to date') : 'Put it live'}
+            <button className={`btn ${view ? 'on' : ''} hide-sm`} onClick={() => setView((v) => !v)}>
+              {view ? <I.Pen /> : <I.Eye />}
+              {view ? 'Back to editing' : 'Customer view'}
             </button>
+            <Link className="btn" href={`/edit/${id}/promote`}><I.Tag /><span>Flyers &amp; posts</span></Link>
+            <div className="menu">
+              <button className="btn" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>More ▾</button>
+              {menu && (
+                <div className="menu-list" role="menu">
+                  {props.role !== 'editor' && <button role="menuitem" onClick={() => { setMenu(false); setOpen({ name: 'invite' }); }}><I.Share />Invite your team</button>}
+                  <button role="menuitem" onClick={() => { setMenu(false); setOpen({ name: 'history' }); }}><I.Hist />Undo older changes</button>
+                  <button role="menuitem" className="hide-sm" onClick={() => { setMenu(false); setPhoneFrame((f) => !f); }}><I.Eye />{phoneFrame ? 'Show at full size' : 'Preview on a phone'}</button>
+                  {live && <a role="menuitem" href={props.siteUrl} target="_blank" rel="noopener"><I.Eye />Open my live website</a>}
+                </div>
+              )}
+            </div>
+            {!live && (
+              <button className="btn primary" disabled={launching} onClick={() => launch()}>
+                {launching ? 'Putting it live…' : 'Put my website live'}
+              </button>
+            )}
           </div>
         </div>
-        {!view && (
-          <div className="ed-quick">
-            <div className="in">
-              <form className="cmd" onSubmit={runCmd}>
-                <I.Pen />
-                <input value={cmd} onChange={(e) => setCmd(e.target.value)} placeholder={`Tell us what changed, like ${EXAMPLES[ex % EXAMPLES.length]}`} aria-label="Describe a change to your website" />
-                <button type="submit">Update</button>
-              </form>
-              <button className={`qb hot ${emergencyOn ? 'on' : ''}`} onClick={() => setOpen({ name: 'status' })}><I.Siren />{emergencyOn ? 'Emergency mode on' : 'Emergency mode'}</button>
-              <button className="qb" onClick={() => setOpen({ name: 'areas' })}><I.Map />Towns</button>
-              <button className="qb" onClick={() => setOpen({ name: 'photos', itemId: 'new' })}><I.Camera />Post a job</button>
-              <button className="qb" onClick={() => setOpen({ name: 'prices' })}><I.Dollar />Prices</button>
-              <button className="qb" onClick={() => setOpen({ name: 'reviews' })}><I.Star />Reviews</button>
-              <button className="qb" onClick={() => setOpen({ name: 'special' })}><I.Tag />Deal</button>
-              <button className="qb" onClick={() => setOpen({ name: 'hours' })}><I.Clock />Hours</button>
-              <button className="qb" onClick={() => setOpen({ name: 'brand' })}><I.Badge />Logo & name</button>
-              <button className="qb hide-sm" onClick={() => setOpen({ name: 'history' })}><I.Hist />History</button>
-            </div>
-          </div>
-        )}
-      </div>
+        <div className="mtabs show-sm" role="tablist">
+          <button role="tab" aria-selected={mobileTab === 'actions'} onClick={() => setMobileTab('actions')}>Quick changes</button>
+          <button role="tab" aria-selected={mobileTab === 'site'} onClick={() => setMobileTab('site')}>My website</button>
+        </div>
+      </header>
 
-      <div className="ed-stage">
-        <div className={`ed-canvas ${device}`} ref={canvas}>
-          {device === 'desktop' && (
-            <div className="chrome">
-              <span className="url">{live ? props.siteUrl.replace(/^https?:\/\//, '') : 'Private draft · not on the internet yet'}</span>
-            </div>
+      <div className={`ed-body m-${mobileTab}`}>
+        <aside className="ed-side" aria-label="What do you want to do?">
+          <h2>What do you want to do?</h2>
+          {confirmLeft > 0 && (
+            <button className="act check" onClick={() => setOpen({ name: 'confirm' })}>
+              <span className="ic">!</span>
+              <span className="grow"><b>Check {confirmLeft} things</b><small>We copied these from your old website.</small></span>
+              <span aria-hidden>›</span>
+            </button>
           )}
-          <Site profile={d.draft} mode={view ? 'preview' : 'edit'} now={now} businessId={id} />
-        </div>
+          <button className={`act em ${emergencyOn ? 'on' : ''}`} onClick={() => setOpen({ name: 'status' })} aria-pressed={emergencyOn}>
+            <span className="ic"><I.Siren /></span>
+            <span className="grow">
+              <b>{emergencyOn ? (p.availability.kind === 'emergency' ? 'Emergency calls are ON' : 'Showing “booked up”') : 'Taking emergency calls?'}</b>
+              <small>{emergencyOn ? `Turns off ${until}` : 'Put a red “Call now” bar on your site'}</small>
+            </span>
+            <span className="toggle" aria-hidden />
+          </button>
+          <button className="act" onClick={() => setOpen({ name: 'photos', itemId: 'new' })}>
+            <span className="ic"><I.Camera /></span>
+            <span className="grow"><b>Post a job photo</b><small>Show off work you just finished</small></span>
+            <span aria-hidden>›</span>
+          </button>
+          <form className="act ask" onSubmit={runCmd}>
+            <label htmlFor="ask-input"><b>Something changed? Tell us.</b></label>
+            <div className="ask-row">
+              <input id="ask-input" value={cmd} onChange={(e) => setCmd(e.target.value)} placeholder={`e.g. ${EXAMPLES[ex % EXAMPLES.length]}`} autoComplete="off" />
+              <button type="submit" className="btn primary">Go</button>
+            </div>
+            <small className="hide-sm">Or click any underlined words on your website to change them.</small>
+          </form>
+          <details className="more">
+            <summary>More things you can change</summary>
+            <div className="more-list">
+              {more.map(([name, icon, title, sub]) => (
+                <button key={name} className="row" onClick={() => setOpen({ name })}>
+                  <span className="ic">{icon}</span>
+                  <span className="grow"><b>{title}</b><small>{sub}</small></span>
+                  <span aria-hidden>›</span>
+                </button>
+              ))}
+            </div>
+          </details>
+        </aside>
+
+        <main className="ed-stage">
+          <p className="tapnote show-sm">Tap any underlined words to change them.</p>
+          <div className={`ed-canvas ${phoneFrame ? 'phone' : 'desktop'}`} ref={canvas}>
+            {!phoneFrame && (
+              <div className="chrome">
+                <span className="url">{live ? props.siteUrl.replace(/^https?:\/\//, '') : 'Not on the internet yet'}</span>
+              </div>
+            )}
+            <Site profile={p} mode={view ? 'preview' : 'edit'} now={now} businessId={id} />
+          </div>
+        </main>
       </div>
 
       {fbar && (
         <div className="fbar" style={{ top: fbar.top, left: fbar.left }}>
-          <span>
-            <b>{fbar.label}</b> · {fbar.n}/{fbar.max}
-          </span>
-          <span className="muted">Saves as you type</span>
+          <span>{fbar.n}/{fbar.max} letters</span>
           <button onMouseDown={(e) => e.preventDefault()} onClick={() => (document.activeElement as HTMLElement)?.blur()}>Done</button>
         </div>
       )}
@@ -310,28 +410,29 @@ export function EditorClient(props: EditorProps) {
       {Panel && open && (
         <Panel
           id={id}
-          p={d.draft}
+          p={p}
           now={new Date()}
           itemId={open.itemId}
           prefill={open.prefill}
-          save={d.setField}
-          saveLive={saveLive}
+          save={save}
           live={live}
-          confirm={confirm}
-          onConfirmed={(ids) => publish(ids)}
+          confirm={confirm.items}
+          onConfirmed={(ids) => (confirm.keys ? publishKeys(confirm.keys, ids) : launch(ids))}
           close={(msg) => {
             setOpen(null);
-            if (msg) say(msg);
+            if (msg) {
+              if (live) lastMsg.current = msg;
+              else say('Saved. It goes live when you put your website live.');
+            }
           }}
         />
       )}
       {toast && (
         <div className="toast" role="status">
           {toast.text}
-          {toast.action && <button onClick={toast.action[1]}>{toast.action[0]}</button>}
+          {toast.action && <button onClick={() => { const a = toast.action![1]; setToast(null); void a(); }}>{toast.action[0]}</button>}
         </div>
       )}
     </div>
   );
 }
-

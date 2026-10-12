@@ -116,13 +116,6 @@ export function Site({ profile: p, mode, now, businessId, reviews, reviewLink }:
       <section className="hero">
         <div className="w">
           <div>
-            {!statusOn && ed && (
-              <div className="status none ed" {...edAttrs('status')}>
-                <i />
-                Taking emergency calls? Turn it on here
-                <EdTag ed={ed}>Emergency mode</EdTag>
-              </div>
-            )}
             <T ed={ed} k="copy.kicker" v={c.kicker} max={50} className="kick" />
             <h1>
               <T ed={ed} k="copy.headlineA" v={c.headlineA} max={40} ph="Headline" />
