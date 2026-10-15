@@ -85,13 +85,18 @@ test('import → claim → edit → publish → lead → restart', async ({ brow
   expect(leads).toEqual([{ name: 'Dana Example', message: 'Furnace is blowing cold air' }]);
   await expect.poll(() => lastText('+16045550142')?.body ?? '').toMatch(/New request from your website/);
 
-  // 6. The owner sees the request in the editor and marks it handled (BR-07).
+  // 6. The owner sees the request in the editor and marks it handled (BR-07),
+  //    and can see the history of published versions (BR-08).
   await owner.goto(`/edit/${businessId}`);
   await closePanels(owner);
   await owner.getByRole('button', { name: /1 new customer request/ }).click();
   await expect(owner.locator('.lead').filter({ hasText: 'Dana Example' })).toBeVisible();
   await owner.getByRole('button', { name: 'Mark handled' }).click();
   await expect.poll(async () => (await db.from('leads').select('handled').eq('business_id', businessId).single()).data?.handled).toBe(true);
+  await owner.keyboard.press('Escape');
+  await owner.getByRole('button', { name: 'More ▾' }).click();
+  await owner.getByRole('menuitem', { name: 'Undo older changes' }).click();
+  await expect(owner.locator('.rp .li')).toHaveCount(2); // "put live" + the headline edit
   await owner.keyboard.press('Escape');
 
   // 7. A second person can't claim it, and the old preview link is view-only.

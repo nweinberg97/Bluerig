@@ -10,7 +10,6 @@ import { FULL, fmtHour, fmtRange, localDate, untilFromPreset, type UntilPreset }
 import { TOWNS } from '@/lib/places-ca';
 import type { Confirmation } from '@/lib/checks';
 import { reviewLink } from '@/lib/reviews';
-import { browserClient } from '@/lib/supabase/browser';
 import { uploadImage } from './upload';
 import { useLeads, type Lead } from './useLeads';
 import * as I from '../icons';
@@ -667,13 +666,11 @@ export function HistoryPanel({ id, close }: PanelProps) {
   const [rows, setRows] = useState<{ id: number; label: string; created_at: string }[] | null>(null);
   const [busy, setBusy] = useState<number | null>(null);
   useEffect(() => {
-    void browserClient()
-      .from('site_versions')
-      .select('id, label, created_at')
-      .eq('business_id', id)
-      .order('created_at', { ascending: false })
-      .limit(30)
-      .then(({ data }) => setRows((data as typeof rows) ?? []));
+    // Loaded on the server, so Bluerig staff who aren't members see it too.
+    void fetch(`/api/businesses/${id}/history`)
+      .then((r) => (r.ok ? r.json() : { versions: [] }))
+      .then((j: { versions?: typeof rows }) => setRows(j.versions ?? []))
+      .catch(() => setRows([]));
   }, [id]);
   async function restore(v: number) {
     setBusy(v);
