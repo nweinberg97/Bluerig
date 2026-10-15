@@ -39,13 +39,31 @@ function channel() {
 }
 
 function query(table: string) {
+  let patch: Record<string, unknown> | null = null;
+  const where: [string, unknown][] = [];
   const q = {
     select: () => q,
-    eq: () => q,
     order: () => q,
     limit: () => q,
-    then(res: (v: { data: unknown[] }) => void) {
-      res({ data: table === 'site_versions' ? store.get().versions.map((v) => ({ id: v.id, label: v.label, created_at: v.at })) : [] });
+    update(vals: Record<string, unknown>) {
+      patch = vals;
+      return q;
+    },
+    eq(col: string, val: unknown) {
+      where.push([col, val]);
+      return q;
+    },
+    then(res: (v: { data: unknown[]; error: null }) => void) {
+      const s = store.get();
+      if (table === 'leads') {
+        if (patch) {
+          const id = where.find(([c]) => c === 'id')?.[1];
+          store.set({ leads: s.leads.map((l) => (l.id === id ? { ...l, ...patch } : l)) });
+        }
+        return res({ data: store.get().leads, error: null });
+      }
+      if (table === 'site_versions') return res({ data: s.versions.map((v) => ({ id: v.id, label: v.label, created_at: v.at })), error: null });
+      res({ data: [], error: null });
     },
   };
   return q;
