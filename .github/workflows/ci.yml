@@ -34,3 +34,52 @@ jobs:
             typecheck.txt
             build.txt
           if-no-files-found: ignore
+
+  # The whole journey in a real browser against a local Supabase, with texts and
+  # email going to a mock. See e2e/README.md.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start local Supabase (applies the migrations)
+        run: supabase start
+      - name: Export local Supabase URL and keys
+        shell: bash
+        run: |
+          eval "$(supabase status -o env)"
+          echo "SUPABASE_URL=$API_URL" >> "$GITHUB_ENV"
+          echo "SUPABASE_ANON_KEY=${ANON_KEY:-$PUBLISHABLE_KEY}" >> "$GITHUB_ENV"
+          echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY:-$SECRET_KEY}" >> "$GITHUB_ENV"
+      - run: npm install --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - name: Build against the local database
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ env.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_APP_URL: http://localhost:3100
+      - run: npm run test:e2e
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: e2e-results.json
+      - name: Report what ran
+        if: always()
+        shell: bash
+        run: |
+          if [ -f e2e-results.json ]; then
+            node -e 'const r=require("./e2e-results.json");const s=r.stats;console.log(`::notice title=Journey test::${s.expected} passed, ${s.unexpected} failed, ${s.skipped} skipped in ${Math.round(s.duration/1000)}s`)'
+          fi
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore

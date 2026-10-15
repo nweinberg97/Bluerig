@@ -30,7 +30,11 @@ function privateIp(ip: string): boolean {
   return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127);
 }
 
+/** Only the end-to-end test may read a site on this machine (never on Vercel). */
+const e2eLocalHost = (host: string) => process.env.BLUERIG_E2E === '1' && !process.env.VERCEL && /^(127\.0\.0\.1|localhost)$/.test(host);
+
 async function assertPublicHost(host: string) {
+  if (e2eLocalHost(host)) return;
   if (/^(localhost|.*\.local|.*\.internal)$/i.test(host)) throw new ImportError('That address isn’t a public website.');
   const addrs = await lookup(host, { all: true }).catch(() => {
     throw new ImportError('We couldn’t find that website. Check the address.');

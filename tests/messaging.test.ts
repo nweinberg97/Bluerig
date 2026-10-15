@@ -40,3 +40,18 @@ test('with keys, Twilio is called (mocked) and failures are reported', async () 
   assert.equal(r.ok, false);
   assert.match(seen[0], /api\.twilio\.com\/2010-04-01\/Accounts\/AC1\/Messages\.json/);
 });
+
+test('the test-only mock address is used only in E2E mode and never on Vercel', async () => {
+  const base = { NODE_ENV: 'production', TWILIO_ACCOUNT_SID: 'AC1', TWILIO_AUTH_TOKEN: 't', TWILIO_FROM_NUMBER: '+16045550100', TWILIO_API_BASE: 'http://127.0.0.1:4010/twilio' };
+  const urls: string[] = [];
+  const mock = (async (url: string) => {
+    urls.push(String(url));
+    return new Response('{}', { status: 201 });
+  }) as unknown as typeof fetch;
+  await sendSms('+16045550142', 'a', base, mock);
+  await sendSms('+16045550142', 'b', { ...base, BLUERIG_E2E: '1' }, mock);
+  await sendSms('+16045550142', 'c', { ...base, BLUERIG_E2E: '1', VERCEL: '1' }, mock);
+  assert.match(urls[0], /^https:\/\/api\.twilio\.com\//);
+  assert.match(urls[1], /^http:\/\/127\.0\.0\.1:4010\/twilio\/2010-04-01\//);
+  assert.match(urls[2], /^https:\/\/api\.twilio\.com\//);
+});
