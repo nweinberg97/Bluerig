@@ -16,5 +16,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const live = await publish(a, profile, `Restored version from ${new Date(v.created_at).toLocaleString('en-CA')}`);
   await sb.from('businesses').update({ draft: live }).eq('id', a.row.id);
   revalidatePath(`/s/${a.row.slug}`);
+  if (a.row.custom_domain) revalidatePath(`/d/${a.row.custom_domain}`);
   return ok({ published: live });
 }

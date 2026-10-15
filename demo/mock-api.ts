@@ -16,7 +16,8 @@ async function handle(path: string, body: Record<string, unknown>): Promise<Resp
   const s = store.get();
   await new Promise((r) => setTimeout(r, 120)); // feel like a network
   if (path === '/api/leads') {
-    store.set({ leads: [{ name: String(body.name), phone: String(body.phone), message: String(body.message), at: new Date().toISOString() }, ...s.leads] });
+    const lead = { id: Date.now(), name: String(body.name), phone: String(body.phone), town: String(body.town ?? '') || null, message: String(body.message), urgency: (['now', 'soon', 'quote'].includes(String(body.urgency)) ? body.urgency : 'soon') as 'now' | 'soon' | 'quote', handled: false, created_at: new Date().toISOString() };
+    store.set({ leads: [lead, ...s.leads] });
     return json({ ok: true });
   }
   const m = path.match(/^\/api\/businesses\/demo\/([a-z-]+)$/);
@@ -62,6 +63,8 @@ async function handle(path: string, body: Record<string, unknown>): Promise<Resp
     }
     case 'invite':
       return json({ ok: true });
+    case 'history':
+      return json({ ok: true, versions: s.versions.map((v) => ({ id: v.id, label: v.label, created_at: v.at })) });
   }
   return fail('Not in the demo', 404);
 }

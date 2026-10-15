@@ -54,3 +54,18 @@ test('brand colours that are too light still give readable buttons', () => {
   const g = html.match(/--g:(#[0-9A-F]{6})/)![1];
   assert.notEqual(g, '#9BE7A0');
 });
+
+import { ClaimBar } from '../src/app/p/[token]/ClaimBar';
+
+test('BR-01: a claimed preview link is view-only (no claim button)', () => {
+  const props = { token: 't', signedIn: true, phone: '604-555-0142', businessId: 'b1' };
+  const open = renderToStaticMarkup(<ClaimBar {...props} claimed={false} canEdit={false} />);
+  assert.match(open, /Text a code to 604-555-0142/);
+  const claimedStranger = renderToStaticMarkup(<ClaimBar {...props} claimed canEdit={false} />);
+  assert.equal(claimedStranger, '');
+  const claimedOwner = renderToStaticMarkup(<ClaimBar {...props} claimed canEdit />);
+  assert.match(claimedOwner, /Open editor/);
+  assert.doesNotMatch(claimedOwner, /code/i);
+  const signedOut = renderToStaticMarkup(<ClaimBar {...props} signedIn={false} claimed canEdit={false} />);
+  assert.equal(signedOut, '');
+});

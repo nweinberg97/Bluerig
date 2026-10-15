@@ -6,13 +6,19 @@ export interface DemoState {
   draft: BusinessProfile;
   published: BusinessProfile;
   versions: { id: number; label: string; at: string; profile: BusinessProfile }[];
-  leads: { name: string; phone: string; message: string; at: string }[];
+  leads: { id: number; name: string; phone: string | null; town: string | null; message: string; urgency: 'now' | 'soon' | 'quote'; handled: boolean; created_at: string }[];
 }
-const KEY = 'bluerig-demo-v1';
+const KEY = 'bluerig-demo-v2';
 
 function fresh(): DemoState {
   const p = demoProfile();
-  return { draft: p, published: p, versions: [{ id: 1, label: 'First version', at: new Date().toISOString(), profile: p }], leads: [] };
+  const ago = (min: number) => new Date(Date.now() - min * 60000).toISOString();
+  // Made-up example requests, so the demo shows what owners see.
+  const leads: DemoState['leads'] = [
+    { id: 2, name: 'Priya S.', phone: '604-555-0187', town: 'Coquitlam', message: 'No heat since this morning. Furnace clicks but won’t light.', urgency: 'now', handled: false, created_at: ago(18) },
+    { id: 1, name: 'Mark T.', phone: '604-555-0123', town: 'Port Moody', message: 'Looking for a quote on a heat pump for a 1,800 sq ft townhouse.', urgency: 'quote', handled: false, created_at: ago(60 * 26) },
+  ];
+  return { draft: p, published: p, versions: [{ id: 1, label: 'First version', at: new Date().toISOString(), profile: p }], leads };
 }
 
 let state: DemoState = (() => {

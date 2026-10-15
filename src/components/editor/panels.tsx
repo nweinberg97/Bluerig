@@ -10,11 +10,11 @@ import { FULL, fmtHour, fmtRange, localDate, untilFromPreset, type UntilPreset }
 import { TOWNS } from '@/lib/places-ca';
 import type { Confirmation } from '@/lib/checks';
 import { reviewLink } from '@/lib/reviews';
-import { browserClient } from '@/lib/supabase/browser';
 import { uploadImage } from './upload';
+import { useLeads, type Lead } from './useLeads';
 import * as I from '../icons';
 
-export type PanelName = 'status' | 'special' | 'areas' | 'prices' | 'photos' | 'service' | 'hours' | 'brand' | 'phone' | 'reviews' | 'history' | 'invite' | 'check' | 'confirm';
+export type PanelName = 'status' | 'special' | 'areas' | 'prices' | 'photos' | 'service' | 'hours' | 'brand' | 'phone' | 'reviews' | 'history' | 'invite' | 'check' | 'confirm' | 'leads';
 
 export interface PanelProps {
   id: string;
@@ -666,13 +666,11 @@ export function HistoryPanel({ id, close }: PanelProps) {
   const [rows, setRows] = useState<{ id: number; label: string; created_at: string }[] | null>(null);
   const [busy, setBusy] = useState<number | null>(null);
   useEffect(() => {
-    void browserClient()
-      .from('site_versions')
-      .select('id, label, created_at')
-      .eq('business_id', id)
-      .order('created_at', { ascending: false })
-      .limit(30)
-      .then(({ data }) => setRows((data as typeof rows) ?? []));
+    // Loaded on the server, so Bluerig staff who aren't members see it too.
+    void fetch(`/api/businesses/${id}/history`)
+      .then((r) => (r.ok ? r.json() : { versions: [] }))
+      .then((j: { versions?: typeof rows }) => setRows(j.versions ?? []))
+      .catch(() => setRows([]));
   }, [id]);
   async function restore(v: number) {
     setBusy(v);
@@ -703,6 +701,65 @@ export function HistoryPanel({ id, close }: PanelProps) {
   );
 }
 
+// ---------- customer requests (leads) ----------
+
+const URGENCY: Record<Lead['urgency'], [string, string]> = {
+  now: ['Urgent', 'red'],
+  soon: ['This week', ''],
+  quote: ['Quote', ''],
+};
+
+function ago(iso: string, now: number) {
+  const m = Math.round((now - Date.parse(iso)) / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h} hour${h === 1 ? '' : 's'} ago`;
+  const d = Math.round(h / 24);
+  return d === 1 ? 'yesterday' : `${d} days ago`;
+}
+
+export function LeadsPanel({ id, p, close }: PanelProps) {
+  const { leads, markHandled, loading } = useLeads(id);
+  const now = Date.now();
+  const open = leads.filter((l) => !l.handled);
+  const done = leads.filter((l) => l.handled);
+  const card = (l: Lead) => (
+    <div className={`lead ${l.handled ? 'done' : ''}`} key={l.id}>
+      <div className="lead-top">
+        <b>{l.name}</b>
+        {!l.handled && <span className={`pill ${URGENCY[l.urgency][1]}`}>{URGENCY[l.urgency][0]}</span>}
+        <small>{ago(l.created_at, now)}{l.town ? ` · ${l.town}` : ''}</small>
+      </div>
+      <p>{l.message}</p>
+      <div className="lead-actions">
+        {l.phone && <a className="btn light" href={`tel:${l.phone.replace(/[^\d+]/g, '')}`}>Call {l.phone}</a>}
+        {!l.handled && <Btn kind="primary" onClick={() => markHandled(l.id)}>Mark handled</Btn>}
+      </div>
+    </div>
+  );
+  return (
+    <Shell title="Customer requests" sub={`Sent from the form on your website. Each one was also texted to ${p.phone || 'your phone'}.`} close={() => close()}>
+      {loading ? (
+        <p className="note">Loading…</p>
+      ) : leads.length === 0 ? (
+        <p className="note">No requests yet. When a customer fills in the form on your website, it shows up here.</p>
+      ) : (
+        <>
+          {open.length === 0 && <p className="note">You’re all caught up.</p>}
+          <div className="list">{open.map(card)}</div>
+          {done.length > 0 && (
+            <details>
+              <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: 14 }}>Handled ({done.length})</summary>
+              <div className="list" style={{ marginTop: 10 }}>{done.map(card)}</div>
+            </details>
+          )}
+        </>
+      )}
+    </Shell>
+  );
+}
+
 // ---------- invite ----------
 
 export function InvitePanel({ id, close }: PanelProps) {
@@ -711,7 +768,7 @@ export function InvitePanel({ id, close }: PanelProps) {
   async function go() {
     const r = await fetch(`/api/businesses/${id}/invite`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
     const j = await r.json().catch(() => ({}));
-    setMsg(r.ok ? { ok: true, text: `Invite sent to ${email}. They can edit right away.` } : { ok: false, text: j.error ?? 'Couldn’t invite.' });
+    setMsg(r.ok ? { ok: true, text: `Invite sent to ${email}. They’ll get an email with a link to start editing.` } : { ok: false, text: j.error ?? 'Couldn’t invite.' });
     if (r.ok) setEmail('');
   }
   return (
@@ -799,4 +856,5 @@ export const PANELS: Record<PanelName, (p: PanelProps) => ReactNode> = {
   invite: InvitePanel,
   check: CheckPanel,
   confirm: ConfirmPanel,
+  leads: LeadsPanel,
 };
