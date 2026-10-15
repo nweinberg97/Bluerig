@@ -115,7 +115,7 @@ test('import → claim → edit → publish → lead → restart', async ({ brow
   //    an owner); typing a new one builds a private preview and texts the link.
   const taken = await customer.request.post('/api/preview', { data: { website: `${MOCK}/shop/`, contact: '604-555-0177' } });
   expect(taken.status()).toBe(409);
-  const fresh = await customer.request.post('/api/preview', { data: { website: 'http://localhost:4010/shop/', contact: '604-555-0177' } });
+  const fresh = await customer.request.post('/api/preview', { data: { website: 'http://127.0.0.2:4010/shop/', contact: '604-555-0177' } });
   expect(fresh.status()).toBe(200);
   const { previewPath: freshPath } = await fresh.json();
   await expect.poll(() => lastText('+16045550177')?.body ?? '').toContain(freshPath);
