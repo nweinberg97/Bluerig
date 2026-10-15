@@ -1,7 +1,9 @@
 // Texts, calls and email with plain fetch calls.
-// When a provider isn't configured, messages go to the server log.
+// Development: when a provider isn't configured, messages go to the server log.
+// Production: an unconfigured provider is a failure, never a pretend "sent".
 
 type Env = Record<string, string | undefined>;
+const isProd = (env: Env) => env.NODE_ENV === 'production';
 
 export const smsConfigured = (env: Env = process.env) => !!(env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && env.TWILIO_FROM_NUMBER);
 export const emailConfigured = (env: Env = process.env) => !!env.RESEND_API_KEY;
@@ -16,6 +18,7 @@ const twilioAuth = (env: Env) => 'Basic ' + Buffer.from(`${env.TWILIO_ACCOUNT_SI
 
 export async function sendSms(to: string, body: string, env: Env = process.env, fetcher: typeof fetch = fetch): Promise<SendResult> {
   if (!smsConfigured(env)) {
+    if (isProd(env)) return { ok: false, error: 'Text messages aren’t set up on this server.' };
     console.log(`[sms → ${to}] ${body}`);
     return { ok: true, logged: true };
   }
@@ -30,6 +33,7 @@ export async function sendSms(to: string, body: string, env: Env = process.env, 
 /** A voice call that reads out a 6-digit code (for landlines). */
 export async function callWithCode(to: string, code: string, env: Env = process.env, fetcher: typeof fetch = fetch): Promise<SendResult> {
   if (!smsConfigured(env)) {
+    if (isProd(env)) return { ok: false, error: 'Phone calls aren’t set up on this server.' };
     console.log(`[call → ${to}] code ${code}`);
     return { ok: true, logged: true };
   }
@@ -45,6 +49,7 @@ export async function callWithCode(to: string, code: string, env: Env = process.
 
 export async function sendEmail(to: string, subject: string, text: string, env: Env = process.env, fetcher: typeof fetch = fetch): Promise<SendResult> {
   if (!emailConfigured(env)) {
+    if (isProd(env)) return { ok: false, error: 'Email isn’t set up on this server.' };
     console.log(`[email → ${to}] ${subject}\n${text}`);
     return { ok: true, logged: true };
   }

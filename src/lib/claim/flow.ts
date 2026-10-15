@@ -5,6 +5,7 @@
 // Rules:
 // - A business with an owner can't be claimed again. The owners get an email when
 //   someone tries (at most one an hour), and the attempt is refused.
+// - In production nothing pretends to work: no CLAIM_SECRET or no Twilio means 503.
 // - The database also allows only one owner per business (migration 0002), so two
 //   people verifying at the same moment can't both win.
 
@@ -92,6 +93,10 @@ export async function startClaim(d: ClaimDeps, input: { userId: string; token: s
 
   const to = toE164(row.profile.phone);
   if (!to) return fail('There’s no phone number on this site to send a code to. Contact Bluerig and we’ll verify you another way.');
+  if (d.production && !d.smsReady) {
+    d.log('claim refused: Twilio is not configured');
+    return fail('We can’t send codes right now. Please try again later or contact Bluerig.', 503);
+  }
   if (d.limited(`claim:${row.id}`, 4, 60 * 60 * 1000)) return fail('Too many codes sent. Try again in an hour.', 429);
 
   const code = d.newCode();

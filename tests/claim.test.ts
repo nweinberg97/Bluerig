@@ -133,3 +133,50 @@ test('expired codes and landlines', async () => {
   const later = { ...deps, now: () => deps.now() + 16 * 60 * 1000 };
   assert.match(String((await verifyClaim(later, { userId: 'a', token: 'tok', code: '123456' })).body.error), /expired/);
 });
+
+test('BR-02: production without CLAIM_SECRET refuses with 503', async () => {
+  const { deps, state } = fake({ production: true, secret: null });
+  assert.equal((await startClaim(deps, { userId: 'a', token: 'tok' })).status, 503);
+  assert.equal((await verifyClaim(deps, { userId: 'a', token: 'tok', code: '123456' })).status, 503);
+  assert.equal(state.sms.length, 0);
+  assert.match(state.logs.join(), /CLAIM_SECRET/);
+});
+
+test('BR-02: production without Twilio refuses with 503 and never says "sent"', async () => {
+  const { deps, state } = fake({ production: true, smsReady: false });
+  const s = await startClaim(deps, { userId: 'a', token: 'tok' });
+  assert.equal(s.status, 503);
+  assert.equal(s.body.ok, false);
+  assert.equal(state.claim, null, 'no code is stored');
+  assert.equal(state.sms.length, 0);
+});
+
+test('BR-02: the claim secret is required in production and optional in development', () => {
+  assert.equal(claimSecret({ NODE_ENV: 'production', SUPABASE_SERVICE_ROLE_KEY: 'svc' }), null);
+  assert.equal(claimSecret({ NODE_ENV: 'production', CLAIM_SECRET: 's3' }), 's3');
+  assert.equal(claimSecret({ NODE_ENV: 'development', SUPABASE_SERVICE_ROLE_KEY: 'svc' }), 'svc');
+  assert.equal(claimSecret({ NODE_ENV: 'development' }), 'dev-only-secret');
+});
+
+test('BR-02: the server refuses to start in production without CLAIM_SECRET', async () => {
+  const { register } = await import('../src/instrumentation');
+  const saved = { ...process.env };
+  const set = (env: Record<string, string | undefined>) => {
+    for (const k of ['NEXT_RUNTIME', 'NODE_ENV', 'NEXT_PHASE', 'CLAIM_SECRET']) {
+      if (env[k] === undefined) delete process.env[k];
+      else process.env[k] = env[k];
+    }
+  };
+  try {
+    set({ NEXT_RUNTIME: 'nodejs', NODE_ENV: 'production' });
+    assert.throws(() => register(), /CLAIM_SECRET is not set/);
+    set({ NEXT_RUNTIME: 'nodejs', NODE_ENV: 'production', CLAIM_SECRET: 'x' });
+    assert.doesNotThrow(() => register());
+    set({ NEXT_RUNTIME: 'nodejs', NODE_ENV: 'production', NEXT_PHASE: 'phase-production-build' });
+    assert.doesNotThrow(() => register(), 'next build still works');
+    set({ NEXT_RUNTIME: 'nodejs', NODE_ENV: 'development' });
+    assert.doesNotThrow(() => register());
+  } finally {
+    process.env = saved;
+  }
+});
