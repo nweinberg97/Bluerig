@@ -2,7 +2,7 @@
 // admin imports a shop → private preview → owner claims with a texted code →
 // puts the site live → edits a headline → public page shows it → a customer sends
 // a request → it's stored and texted → server restarts → everything is still there.
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import type { ChildProcess } from 'node:child_process';
 import { ADMIN_EMAIL, MOCK, OWNER_EMAIL, db, ensureUser, resetData, signInUrl, startApp, startMock, stopApp, type Sent } from './support';
 
@@ -24,10 +24,6 @@ test.afterAll(async () => {
 
 const lastText = (to: string) => [...mock.sent].reverse().find((m) => m.kind === 'sms' && m.to === to);
 
-async function closePanels(page: Page) {
-  // Imported sites open "Things to check" the first time; close it.
-  if (await page.locator('.rp').isVisible().catch(() => false)) await page.keyboard.press('Escape');
-}
 
 test('import → claim → edit → publish → lead → restart', async ({ browser }) => {
   // 1. Admin pastes the shop's old website.
@@ -44,28 +40,37 @@ test('import → claim → edit → publish → lead → restart', async ({ brow
   // 2. The owner opens the preview and claims it with the code texted to the shop.
   const ownerCtx = await browser.newContext();
   const owner = await ownerCtx.newPage();
-  await owner.goto(await signInUrl(OWNER_EMAIL, previewPath!));
-  await expect(owner.getByText('Private preview for Northline.')).toBeVisible();
-  await owner.getByRole('button', { name: 'Text a code to 604-555-0142' }).click();
+  // First they just see their new website, with one button.
+  await owner.goto(previewPath!);
+  await expect(owner.getByText('This is your new website.')).toBeVisible();
+  await owner.getByRole('button', { name: /Edit my website/ }).click();
+  await expect(owner.getByRole('dialog', { name: 'Make it yours' })).toBeVisible();
+  // Step 1 is their email; the link in it brings them back to step 2.
+  await owner.goto(await signInUrl(OWNER_EMAIL, `${previewPath}?claim=1`));
+  await owner.getByRole('button', { name: 'Text me the code' }).click();
   await expect.poll(() => lastText('+16045550142')?.body ?? '').toMatch(/Your Bluerig code for Northline is \d{6}/);
   const code = lastText('+16045550142')!.body.match(/(\d{6})/)![1];
   await owner.getByLabel('6-digit code').fill(code);
-  await owner.getByRole('button', { name: 'Claim' }).click();
+  await owner.getByRole('button', { name: /Done: open my editor/ }).click();
   await owner.waitForURL(/\/edit\/[0-9a-f-]{36}$/);
   const businessId = owner.url().split('/').pop()!;
 
   const { data: members } = await db.from('members').select('role').eq('business_id', businessId);
   expect(members).toEqual([{ role: 'owner' }]);
 
-  // 3. Put it live, then change the headline by typing on the page.
-  await closePanels(owner);
-  await owner.getByRole('button', { name: 'Put my website live' }).click();
+  // 3. The next-step bar walks them through: check what we copied, then put it live.
+  await owner.getByRole('button', { name: 'Check them' }).click();
+  for (let i = 0; i < 8 && (await owner.locator('.rp .li button').count()) > 0; i++) await owner.locator('.rp .li button').first().click();
+  await owner.keyboard.press('Escape');
+  await owner.getByRole('button', { name: 'Put it live' }).click();
   await expect(owner.getByText('Your website is live.')).toBeVisible();
+  // Then change the headline: Edit, tap the words, type.
+  await owner.locator('.ed3-dock').getByRole('button', { name: 'Edit' }).click();
   const headline = owner.locator('[data-k="copy.headlineA"]');
   await headline.click();
   await owner.keyboard.press('ControlOrMeta+A');
   await owner.keyboard.type('Furnace repair for');
-  await owner.locator('.ed-side h2').click(); // click away = Done
+  await owner.locator('.ed3-hint .grow').click(); // tap away = done with that text
   await expect(owner.getByText('Saved. It’s on your website now.')).toBeVisible();
 
   // 4. The public page shows the edit.
@@ -88,13 +93,13 @@ test('import → claim → edit → publish → lead → restart', async ({ brow
   // 6. The owner sees the request in the editor and marks it handled (BR-07),
   //    and can see the history of published versions (BR-08).
   await owner.goto(`/edit/${businessId}`);
-  await closePanels(owner);
-  await owner.getByRole('button', { name: /1 new customer request/ }).click();
+  await expect(owner.getByText('1 new customer request from your website.')).toBeVisible();
+  await owner.getByRole('button', { name: 'See them' }).click();
   await expect(owner.locator('.lead').filter({ hasText: 'Dana Example' })).toBeVisible();
   await owner.getByRole('button', { name: 'Mark handled' }).click();
   await expect.poll(async () => (await db.from('leads').select('handled').eq('business_id', businessId).single()).data?.handled).toBe(true);
   await owner.keyboard.press('Escape');
-  await owner.getByRole('button', { name: 'More ▾' }).click();
+  await owner.getByRole('button', { name: 'Menu' }).click();
   await owner.getByRole('menuitem', { name: 'Undo older changes' }).click();
   await expect(owner.locator('.rp .li')).toHaveCount(2); // "put live" + the headline edit
   await owner.keyboard.press('Escape');
@@ -112,7 +117,7 @@ test('import → claim → edit → publish → lead → restart', async ({ brow
   await customer.goto(`/s/${biz!.slug}`);
   await expect(customer.locator('h1')).toContainText('Furnace repair for');
   await owner.goto(`/edit/${businessId}`);
-  await expect(owner.locator('[data-k="copy.headlineA"]')).toHaveText('Furnace repair for');
+  await expect(owner.locator('.ed3-site h1')).toContainText('Furnace repair for');
   const { count } = await db.from('leads').select('id', { count: 'exact', head: true }).eq('business_id', businessId);
   expect(count).toBe(1);
 

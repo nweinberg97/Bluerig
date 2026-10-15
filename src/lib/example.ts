@@ -1,8 +1,8 @@
-// A made-up shop for the demo. Not a real business.
-import { newProfile, type BusinessProfile } from '../src/lib/profile';
-import { addDays, localDate } from '../src/lib/time';
+// A made-up shop used by the landing page, the /example link and the demo. Not a real business.
+import { newProfile, type BusinessProfile } from './profile';
+import { addDays, localDate } from './time';
 
-export function demoProfile(now = new Date()): BusinessProfile {
+export function exampleProfile(now = new Date()): BusinessProfile {
   const tz = 'America/Vancouver';
   const today = localDate(now, tz);
   return newProfile({
@@ -31,8 +31,8 @@ export function demoProfile(now = new Date()): BusinessProfile {
 }
 
 /** The same shop as it would look straight after the website importer. */
-export function importedProfile(now = new Date()): BusinessProfile {
-  const p = demoProfile(now);
+export function importedExample(now = new Date()): BusinessProfile {
+  const p = exampleProfile(now);
   p.special = null;
   p.prices = [{ id: 'p1', label: 'Diagnostic fee', amount: 89 }];
   p.facts = { yearFounded: null, familyOwned: false, awards: [], licensedInsured: false, emergency247: false };

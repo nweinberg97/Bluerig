@@ -5,7 +5,7 @@
   "description": "Bluerig: websites for HVAC and plumbing shops in Canada. Built for owners, updated in under a minute.",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node demo/build.mjs && next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "tsx --tsconfig tsconfig.test.json --test tests/*.test.ts tests/*.test.tsx",

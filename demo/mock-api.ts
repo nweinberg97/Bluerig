@@ -58,8 +58,9 @@ async function handle(path: string, body: Record<string, unknown>): Promise<Resp
     }
     case 'review-request': {
       if (!toE164(String(body.phone ?? ''))) return fail('That doesn’t look like a mobile number.');
-      if (!s.published.googlePlaceId && !s.published.reviewsUrl) return fail('Connect your Google listing first.');
-      return json({ ok: true, preview: reviewRequestText(s.published, { firstName: String(body.firstName ?? ''), link: 'https://search.google.com/local/writereview?placeid=demo' }) });
+      const live = s.published ?? s.draft;
+      if (!live.googlePlaceId && !live.reviewsUrl) return fail('Connect your Google listing first.');
+      return json({ ok: true, preview: reviewRequestText(live, { firstName: String(body.firstName ?? ''), link: 'https://search.google.com/local/writereview?placeid=demo' }) });
     }
     case 'invite':
       return json({ ok: true });
@@ -93,7 +94,7 @@ export function installMockApi() {
       if (!a) return;
       e.preventDefault();
       const q = new URL(a.getAttribute('href')!, 'https://demo.local').searchParams;
-      const svg = renderPromo(store.get().published, q.get('format') ?? 'post', {
+      const svg = renderPromo(store.get().published ?? store.get().draft, q.get('format') ?? 'post', {
         topic: q.get('topic') ?? 'brand',
         variant: Number(q.get('v') ?? 0),
         slide: Number(q.get('slide') ?? 0),

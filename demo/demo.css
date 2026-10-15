@@ -1,17 +1,32 @@
-.demo-nav { position: fixed; z-index: 95; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 4px; align-items: center; background: rgba(11, 16, 21, 0.94); border: 1px solid #26313c; border-radius: 999px; padding: 5px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4); max-width: calc(100vw - 16px); overflow-x: auto; scrollbar-width: none; }
-.demo-nav button { border: 0; background: transparent; color: #c9d3dc; border-radius: 999px; padding: 7px 12px; font-weight: 650; font-size: 13px; white-space: nowrap; }
-.demo-nav button[aria-pressed='true'] { background: #4c8dff; color: #fff; }
-.demo-nav .demo-tag { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #ffc266; padding: 0 8px 0 10px; white-space: nowrap; }
-.demo-nav .demo-reset { color: #92a0ad; }
-.demo-phone { min-height: 100dvh; display: grid; justify-items: center; align-content: start; gap: 14px; padding: 24px 12px 90px; }
-.demo-phone-frame { width: min(400px, 100%); border-radius: 36px; border: 10px solid #000; overflow: hidden; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5); }
-.demo-phone-frame .qa { min-height: 760px; }
-.demo-phone-note { color: #92a0ad; font-size: 14px; max-width: 400px; text-align: center; margin: 0; }
-@media (max-width: 600px) { .demo-phone { padding: 0 0 90px; } .demo-phone-frame { border: 0; border-radius: 0; box-shadow: none; } .demo-nav .demo-tag { display: none; } }
-.toast { bottom: 76px !important; }
-
+/* Demo-only: the step bar and the "make a link" screen. */
+.demo-steps { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #fff2c2; color: #3d2e00; font-size: 13.5px; border-bottom: 1px solid #e7cf7a; }
+.demo-tag { font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; background: #3d2e00; color: #fff2c2; border-radius: 6px; padding: 2px 7px; }
+.demo-now { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.demo-pills { display: none; gap: 4px; }
+.demo-pills button, .demo-arrows button, .demo-reset { border: 1px solid #d9bd5c; background: #fffaf0; color: #3d2e00; border-radius: 999px; padding: 5px 11px; font-weight: 700; font-size: 13px; font-family: inherit; }
+.demo-pills button[aria-current='true'] { background: #3d2e00; color: #fff2c2; border-color: #3d2e00; }
+.demo-arrows { display: flex; gap: 4px; }
+.demo-arrows button { width: 34px; padding: 5px 0; font-size: 16px; line-height: 1; }
+.demo-arrows button:disabled { opacity: 0.4; }
+.demo-reset { background: transparent; }
+@media (min-width: 980px) { .demo-now { display: none; } .demo-pills { display: flex; flex: 1; } .demo-arrows { display: none; } }
+.mk { padding-top: 8px; }
+.mk-in { border-top: 0; max-width: 560px; }
+.mk-steps { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 8px; }
+.mk-steps li { display: flex; gap: 10px; align-items: center; font-weight: 650; color: var(--lp-mute); }
+.mk-steps li.ok { color: var(--lp-ink); }
+.mk-steps svg { width: 18px; height: 18px; color: #1a9a5a; flex: none; }
+.spin { width: 16px; height: 16px; border-radius: 50%; border: 2.5px solid var(--lp-line); border-top-color: var(--lp-blue); animation: spin 0.8s linear infinite; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.mk-ready { margin-top: 22px; background: var(--lp-card); border: 1px solid var(--lp-line); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.mk-ready h3 { margin: 0; font-size: 20px; }
+.mk-link { margin: 0; font-weight: 800; font-size: 18px; color: var(--lp-blue); word-break: break-all; }
+.mk-text { background: #e9f0ff; border-radius: 16px 16px 16px 4px; padding: 12px 14px; font-size: 15px; line-height: 1.45; max-width: 420px; }
+.mk-ready .lp-btn.wide { width: 100%; margin-top: 4px; }
+.toast { bottom: 96px !important; }
 .demo-file { position: fixed; inset: 0; z-index: 99; background: rgba(3, 6, 9, 0.7); display: grid; place-items: center; padding: 16px; }
 .demo-file-in { background: #fff; color: #111a22; border-radius: 16px; padding: 16px; width: min(640px, 100%); max-height: 92vh; overflow: auto; display: grid; gap: 12px; }
 .demo-file-in p { margin: 0; font-size: 14px; }
 .demo-file-in svg { display: block; height: auto; border-radius: 6px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2); }
 .demo-file-in button { justify-self: end; border: 0; background: #111a22; color: #fff; border-radius: 10px; padding: 8px 14px; font-weight: 700; }
+@media (max-width: 600px) { .demo-tag { display: none; } }
