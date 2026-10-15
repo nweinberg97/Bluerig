@@ -7,12 +7,10 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Site } from '../Site';
 import * as I from '../icons';
-import { exampleProfile } from '@/lib/example';
+import { exampleProfile, showcaseExamples } from '@/lib/example';
+import type { BusinessProfile } from '@/lib/profile';
 
 export interface LandingProps {
-  /** Where "See an example" goes. */
-  exampleHref: string;
-  onExample?: () => void;
   /** Builds the preview and opens it. Returns an error message, or null when it's opening. */
   buildPreview: (website: string, contact: string) => Promise<string | null>;
   signInHref?: string;
@@ -114,22 +112,61 @@ function PreviewForm({ buildPreview, id, defaultSite = '' }: { buildPreview: Lan
   );
 }
 
-export function Landing({ exampleHref, onExample, buildPreview, signInHref, defaultSite }: LandingProps) {
-  const example = exampleProfile();
-  const exampleLink = (cls: string, label: string) => (
-    <a
-      className={cls}
-      href={exampleHref}
-      onClick={(e) => {
-        if (onExample) {
-          e.preventDefault();
-          onExample();
-        }
-      }}
-    >
-      {label}
-    </a>
+/**
+ * Full websites people can open and scroll. Until there are real client sites
+ * (shown only with their permission), these are clearly labelled example designs.
+ */
+function Showcase() {
+  const items = showcaseExamples();
+  const [open, setOpen] = useState<BusinessProfile | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(null);
+    window.addEventListener('keydown', h);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', h);
+      document.body.style.overflow = '';
+    };
+  }, [open]);
+  return (
+    <section className="lp-sec">
+      <h2>What your website could look like</h2>
+      <p className="lp-lead">Example designs for made-up shops. Tap one to see the whole website.</p>
+      <div className="lp-show">
+        {items.map(({ profile, kind }) => (
+          <button key={profile.brand.name} className="lp-show-card" onClick={() => setOpen(profile)}>
+            <span className="lp-show-shot" aria-hidden>
+              <Site profile={profile} mode="live" now={new Date()} />
+            </span>
+            <span className="lp-show-text">
+              <b>{[profile.brand.name, profile.brand.tagline].filter(Boolean).join(' ')}</b>
+              <small>{kind} · {profile.city}, {profile.province}</small>
+              <span className="lp-show-go">See the whole website →</span>
+            </span>
+          </button>
+        ))}
+      </div>
+      {open && (
+        <div className="lp-viewer" role="dialog" aria-modal="true" aria-label={`${open.brand.name} example website`}>
+          <div className="lp-viewer-bar">
+            <span>
+              <b>{open.brand.name}</b> · example design (made-up shop)
+            </span>
+            <button onClick={() => setOpen(null)}>Close</button>
+          </div>
+          <div className="lp-viewer-site">
+            <Site profile={open} mode="live" now={new Date()} />
+          </div>
+        </div>
+      )}
+    </section>
   );
+}
+
+export function Landing({ buildPreview, signInHref, defaultSite }: LandingProps) {
+  const example = exampleProfile();
+
 
   return (
     <main className="lp">
@@ -144,7 +181,6 @@ export function Landing({ exampleHref, onExample, buildPreview, signInHref, defa
           <h1>Your new website is already built.</h1>
           <p className="lp-sub">We turn your current website into a fast, modern one. Then you keep it up to date from your phone, in seconds.</p>
           <PreviewForm buildPreview={buildPreview} id="hero" defaultSite={defaultSite} />
-          <p className="lp-or">or {exampleLink('lp-link', 'see an example first')}</p>
         </div>
         <div className="lp-phone" aria-label="Example: a new website for Northline Mechanical, a made-up shop">
           <div className="lp-phone-screen" aria-hidden>
@@ -182,7 +218,6 @@ export function Landing({ exampleHref, onExample, buildPreview, signInHref, defa
             </div>
           ))}
         </div>
-        {exampleLink('lp-btn primary wide', 'Try it on the example')}
       </section>
 
       <section className="lp-sec lp-price">
@@ -211,6 +246,8 @@ export function Landing({ exampleHref, onExample, buildPreview, signInHref, defa
           ))}
         </div>
       </section>
+
+      <Showcase />
 
       <section className="lp-sec lp-cta" id="preview">
         <h2>See your new website</h2>

@@ -45,7 +45,4 @@ const html = `<!doctype html>\n<html lang="en-CA">\n<head>\n<meta charset="utf-8
 mkdirSync(r('dist'), { recursive: true });
 writeFileSync(r('dist/demo.html'), html);
 writeFileSync(r('dist/demo-artifact.html'), page);
-// The app serves the same story at /example ("See an example" on the landing page).
-mkdirSync(r('public'), { recursive: true });
-writeFileSync(r('public/example.html'), html);
 console.log(`dist/demo.html ${(html.length / 1024).toFixed(0)} KB`);

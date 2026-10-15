@@ -93,9 +93,7 @@ function App() {
 
       {step === 'bluerig' && (
         <Landing
-          exampleHref="#owner"
           defaultSite="northline-mechanical.ca"
-          onExample={() => go('owner')}
           buildPreview={async () => {
             await new Promise((r) => setTimeout(r, 5200));
             go('owner');
