@@ -79,7 +79,7 @@ export function startMock(): Promise<{ sent: Sent[]; stop: () => Promise<void> }
     });
   });
   return new Promise((resolve) =>
-    server.listen(MOCK_PORT, '127.0.0.1', () => resolve({ sent, stop: () => new Promise((r) => server.close(() => r())) })),
+    server.listen(MOCK_PORT, () => resolve({ sent, stop: () => new Promise((r) => server.close(() => r())) })),
   );
 }
 const html = (res: import('node:http').ServerResponse, body: string) => res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(body);

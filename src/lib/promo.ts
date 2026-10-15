@@ -57,8 +57,7 @@ export function promoTopics(p: BusinessProfile, now: Date): PromoTopic[] {
   if (p.special && isSpecialLive(p, now)) t.push({ id: 'special', label: `Deal: ${p.special.title}` });
   if (p.availability.kind === 'emergency') t.push({ id: 'emergency', label: 'Taking emergency calls' });
   for (const s of p.services) t.push({ id: `svc:${s.id}`, label: s.name });
-  const job = [...p.jobs].sort((a, b) => (a.date < b.date ? 1 : -1))[0];
-  if (job) t.push({ id: `job:${job.id}`, label: `Recent job: ${job.caption}` });
+  for (const job of [...p.jobs].sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 6)) t.push({ id: `job:${job.id}`, label: `Job: ${job.caption}` });
   if (p.towns.length > 1) t.push({ id: 'area', label: 'Towns you serve' });
   return t;
 }

@@ -7,10 +7,11 @@ import { PromoteClient } from '@/components/editor/PromoteClient';
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Promote · Bluerig', robots: { index: false } };
 
-export default async function Promote({ params }: { params: Promise<{ id: string }> }) {
+export default async function Promote({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ topic?: string }> }) {
   const { id } = await params;
+  const { topic } = await searchParams;
   if (!(await currentUser())) redirect(`/login?next=/edit/${id}/promote`);
   const a = await forEditor(id);
   if (!a) notFound();
-  return <PromoteClient id={a.row.id} profile={a.row.published ?? a.row.draft} siteUrl={siteUrl(a.row)} live={a.row.status === 'live'} />;
+  return <PromoteClient id={a.row.id} profile={a.row.published ?? a.row.draft} siteUrl={siteUrl(a.row)} live={a.row.status === 'live'} initialTopic={topic} />;
 }

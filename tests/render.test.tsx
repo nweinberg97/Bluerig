@@ -55,17 +55,29 @@ test('brand colours that are too light still give readable buttons', () => {
   assert.notEqual(g, '#9BE7A0');
 });
 
-import { ClaimBar } from '../src/app/p/[token]/ClaimBar';
+import { ClaimFlow, ClaimSteps } from '../src/app/p/[token]/ClaimFlow';
 
-test('BR-01: a claimed preview link is view-only (no claim button)', () => {
-  const props = { token: 't', signedIn: true, phone: '604-555-0142', businessId: 'b1' };
-  const open = renderToStaticMarkup(<ClaimBar {...props} claimed={false} canEdit={false} />);
-  assert.match(open, /Text a code to 604-555-0142/);
-  const claimedStranger = renderToStaticMarkup(<ClaimBar {...props} claimed canEdit={false} />);
-  assert.equal(claimedStranger, '');
-  const claimedOwner = renderToStaticMarkup(<ClaimBar {...props} claimed canEdit />);
-  assert.match(claimedOwner, /Open editor/);
-  assert.doesNotMatch(claimedOwner, /code/i);
-  const signedOut = renderToStaticMarkup(<ClaimBar {...props} signedIn={false} claimed canEdit={false} />);
-  assert.equal(signedOut, '');
+test('the link shows the whole website first, with one clear next step', () => {
+  const html = renderToStaticMarkup(<ClaimFlow token="t" signedIn={false} claimed={false} canEdit={false} businessId="b1" profile={shop()} />);
+  assert.match(html, /This is your new website\./);
+  assert.match(html, /Edit my website/);
+  assert.match(html, /class="site /); // the real site is on the page
+  assert.doesNotMatch(html, /Check this/); // no "to check" clutter on first view
+});
+
+test('BR-01: a claimed link is view-only (no way to claim)', () => {
+  const stranger = renderToStaticMarkup(<ClaimFlow token="t" signedIn claimed canEdit={false} businessId="b1" profile={shop()} />);
+  assert.match(stranger, /This website has been claimed by its owner\./);
+  assert.doesNotMatch(stranger, /Edit my website|Text me the code|Open editor/);
+  const owner = renderToStaticMarkup(<ClaimFlow token="t" signedIn claimed canEdit businessId="b1" profile={shop()} />);
+  assert.match(owner, /Open editor/);
+});
+
+test('claiming is two numbered steps: email, then a code to the shop phone', () => {
+  const out = renderToStaticMarkup(<ClaimSteps token="t" signedIn={false} phone="604-555-0142" name="Northline" />);
+  assert.match(out, /Email me a sign-in link/);
+  assert.match(out, /aria-current="true">Your email/);
+  const signedIn = renderToStaticMarkup(<ClaimSteps token="t" signedIn phone="604-555-0142" name="Northline" />);
+  assert.match(signedIn, /Text me the code/);
+  assert.match(signedIn, /604-555-0142/);
 });

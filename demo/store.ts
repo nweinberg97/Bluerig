@@ -1,24 +1,25 @@
 // In-memory "backend" for the demo, kept in sessionStorage so a reload keeps edits.
 import type { BusinessProfile } from '../src/lib/profile';
-import { demoProfile } from './data';
+import { importedExample } from '../src/lib/example';
 
 export interface DemoState {
   draft: BusinessProfile;
-  published: BusinessProfile;
+  /** null until the owner puts it live (the demo starts right after the import). */
+  published: BusinessProfile | null;
   versions: { id: number; label: string; at: string; profile: BusinessProfile }[];
   leads: { id: number; name: string; phone: string | null; town: string | null; message: string; urgency: 'now' | 'soon' | 'quote'; handled: boolean; created_at: string }[];
 }
-const KEY = 'bluerig-demo-v2';
+const KEY = 'bluerig-demo-v3';
 
 function fresh(): DemoState {
-  const p = demoProfile();
+  const p = importedExample();
   const ago = (min: number) => new Date(Date.now() - min * 60000).toISOString();
   // Made-up example requests, so the demo shows what owners see.
   const leads: DemoState['leads'] = [
     { id: 2, name: 'Priya S.', phone: '604-555-0187', town: 'Coquitlam', message: 'No heat since this morning. Furnace clicks but won’t light.', urgency: 'now', handled: false, created_at: ago(18) },
     { id: 1, name: 'Mark T.', phone: '604-555-0123', town: 'Port Moody', message: 'Looking for a quote on a heat pump for a 1,800 sq ft townhouse.', urgency: 'quote', handled: false, created_at: ago(60 * 26) },
   ];
-  return { draft: p, published: p, versions: [{ id: 1, label: 'First version', at: new Date().toISOString(), profile: p }], leads };
+  return { draft: p, published: null, versions: [], leads };
 }
 
 let state: DemoState = (() => {

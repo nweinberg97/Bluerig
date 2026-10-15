@@ -31,7 +31,7 @@ function privateIp(ip: string): boolean {
 }
 
 /** Only the end-to-end test may read a site on this machine (never on Vercel). */
-const e2eLocalHost = (host: string) => process.env.BLUERIG_E2E === '1' && !process.env.VERCEL && /^(127\.0\.0\.1|localhost)$/.test(host);
+const e2eLocalHost = (host: string) => process.env.BLUERIG_E2E === '1' && !process.env.VERCEL && /^(127\.\d+\.\d+\.\d+|localhost)$/.test(host);
 
 async function assertPublicHost(host: string) {
   if (e2eLocalHost(host)) return;

@@ -8,7 +8,7 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   workers: 1,
   retries: 0,
-  reporter: [['list'], ['json'], ['html', { open: 'never', outputFolder: 'playwright-report' }]],
+  reporter: [['list'], ['json'], ['html', { open: 'never', outputFolder: 'playwright-report' }], ...(process.env.CI ? ([['github']] as const) : [])],
   use: {
     baseURL: 'http://localhost:3100',
     trace: 'retain-on-failure',
