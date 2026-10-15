@@ -12,12 +12,14 @@ import * as I from '../icons';
 const LOOKS = ['Dark', 'Light', 'Bold'];
 const fit = (svg: string) => svg.replace(/width="[^"]+" height="[^"]+"/, 'width="100%"');
 
-export function PromoteClient({ id, profile, siteUrl, live }: { id: string; profile: BusinessProfile; siteUrl: string; live: boolean }) {
+export function PromoteClient({ id, profile, siteUrl, live, initialTopic }: { id: string; profile: BusinessProfile; siteUrl: string; live: boolean; initialTopic?: string }) {
   const now = useMemo(() => new Date(), []);
   const topics = useMemo(() => promoTopics(profile, now), [profile, now]);
-  const [cat, setCat] = useState<PromoCategory | null>(null);
+  const shared = initialTopic && topics.some((t) => t.id === initialTopic) ? initialTopic : null;
+  // "Share" on a job photo lands straight on a social post about that job.
+  const [cat, setCat] = useState<PromoCategory | null>(shared ? 'social' : null);
   const [fmt, setFmt] = useState('post');
-  const [topic, setTopic] = useState(topics.find((t) => t.id === 'special')?.id ?? topics[0].id);
+  const [topic, setTopic] = useState(shared ?? topics.find((t) => t.id === 'special')?.id ?? topics[0].id);
   const [v, setV] = useState(0);
   const [head, setHead] = useState('');
   const [sub, setSub] = useState('');

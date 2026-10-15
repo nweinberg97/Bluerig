@@ -1,12 +1,13 @@
 'use client';
 
-// The editor, built for owners who don't use much software. One place to start:
-// "What do you want to do?" with three big actions and a "More" list, next to the
-// real website (click any underlined words to change them). Saving puts the change
-// live straight away, with Undo, so there's no separate "publish" step to learn.
-// On a phone the same screen shows the actions first, with a switch to the site.
+// The editor, built phone-first for owners who don't use much software. It opens on
+// their website. Three buttons at the bottom: Edit (tap anything on the page,
+// including the emergency-calls strip, deals, prices and job photos), Flyers & posts,
+// and More. A "Next" bar suggests one step at a time. Saving puts the change live
+// straight away, with Undo, so there's no separate "publish" step to learn.
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import type { BusinessProfile, ProfileKey } from '@/lib/profile';
 import { formatPrice } from '@/lib/profile';
@@ -69,7 +70,6 @@ export function EditorClient(props: EditorProps) {
   const [open, setOpen] = useState<Open>(null);
   const [editing, setEditing] = useState(false);
   const [sheet, setSheet] = useState(false);
-  const [menu, setMenu] = useState(false);
   const [toast, setToast] = useState<{ text: string; action?: [string, () => void] } | null>(null);
   const [cmd, setCmd] = useState('');
   const [ex, setEx] = useState(0);
@@ -90,12 +90,6 @@ export function EditorClient(props: EditorProps) {
     const t = setInterval(() => setEx((x) => x + 1), 3500);
     return () => clearInterval(t);
   }, []);
-  useEffect(() => {
-    if (!menu) return;
-    const h = (e: MouseEvent) => !(e.target as HTMLElement).closest('.menu') && setMenu(false);
-    document.addEventListener('click', h);
-    return () => document.removeEventListener('click', h);
-  }, [menu]);
 
   // ---------- saving = going live (with Undo) ----------
   const queue = useRef(new Set<ProfileKey>());
@@ -169,6 +163,9 @@ export function EditorClient(props: EditorProps) {
   // ---------- inline typing on the page ----------
   const dRef = useRef(d);
   dRef.current = d;
+  const router = useRouter();
+  const routerRef = useRef(router);
+  routerRef.current = router;
   useEffect(() => {
     const d = { get draft() { return dRef.current.draft; }, typeAt: (a: string[], b: string) => dRef.current.typeAt(a, b), commit: (a: string[], b: string) => dRef.current.commit(a, b), setFocus: (f: string | null) => dRef.current.setFocus(f) };
     const root = canvas.current;
@@ -226,6 +223,13 @@ export function EditorClient(props: EditorProps) {
     };
     const onClick = (e: MouseEvent) => {
       if (target(e)) return;
+      const share = (e.target as HTMLElement).closest('[data-share]') as HTMLElement | null;
+      if (share) {
+        e.preventDefault();
+        e.stopPropagation();
+        routerRef.current.push(`/edit/${id}/promote?topic=${encodeURIComponent(share.dataset.share!)}`);
+        return;
+      }
       const blk = (e.target as HTMLElement).closest('[data-panel]') as HTMLElement | null;
       if (blk) {
         e.preventDefault();
@@ -280,16 +284,12 @@ export function EditorClient(props: EditorProps) {
   const Panel = open ? PANELS[open.name] : null;
   const confirmLeft = Object.keys(d.draft.confirm).length;
   const p = d.draft;
-  const emergencyOn = p.availability.kind !== 'normal' && !!p.availability.until && Date.parse(p.availability.until) > Date.now();
-  const until = emergencyOn ? new Date(p.availability.until!).toLocaleString('en-CA', { timeZone: p.timezone, weekday: 'short', hour: 'numeric', minute: '2-digit' }) : '';
   const more: [PanelName, ReactNode, string, string][] = [
     ['leads', <I.Chat key="i" />, 'Customer requests', leads.newCount ? `${leads.newCount} new` : 'From the form on your website'],
-    ['prices', <I.Dollar key="i" />, 'Prices', p.prices.length ? p.prices.slice(0, 2).map((x) => `${x.label} ${formatPrice(x)}`).join(' · ') : 'Add your diagnostic fee'],
-    ['areas', <I.Map key="i" />, 'Towns you serve', `${p.towns.slice(0, 3).join(', ')}${p.towns.length > 3 ? ` +${p.towns.length - 3}` : ''}`],
-    ['special', <I.Tag key="i" />, 'Post a deal', p.special ? p.special.title : 'Like a tune-up special'],
     ['hours', <I.Clock key="i" />, 'Hours and days off', 'Holidays, vacation, new hours'],
-    ['reviews', <I.Star key="i" />, 'Ask for a review', 'Text a customer your Google link'],
     ['brand', <I.Badge key="i" />, 'Logo, name and colours', p.brand.logoUrl ? 'Your logo is on the site' : 'Upload your logo'],
+    ...(props.role !== 'editor' ? ([['invite', <I.Share key="i" />, 'Invite your team', 'Your office manager or crew can edit too']] as [PanelName, ReactNode, string, string][]) : []),
+    ['history', <I.Hist key="i" />, 'Undo older changes', 'Every version is kept'],
   ];
 
   // One suggested next step at a time, in order.
@@ -322,17 +322,6 @@ export function EditorClient(props: EditorProps) {
             <span key={x.key} className="face" style={{ background: x.color }} title={`${x.name}${x.field ? ' is editing' : ' is here'}`}>{x.name[0]?.toUpperCase()}</span>
           ))}
         </div>
-        <div className="menu">
-          <button className="btn" aria-expanded={menu} aria-label="Menu" onClick={() => setMenu((m) => !m)}>Menu</button>
-          {menu && (
-            <div className="menu-list" role="menu">
-              <button role="menuitem" onClick={() => { setMenu(false); setOpen({ name: 'leads' }); }}><I.Chat />Customer requests</button>
-              {props.role !== 'editor' && <button role="menuitem" onClick={() => { setMenu(false); setOpen({ name: 'invite' }); }}><I.Share />Invite your team</button>}
-              <button role="menuitem" onClick={() => { setMenu(false); setOpen({ name: 'history' }); }}><I.Hist />Undo older changes</button>
-              {live && <a role="menuitem" href={props.siteUrl} target="_blank" rel="noopener"><I.Eye />Open my live website</a>}
-            </div>
-          )}
-        </div>
       </header>
 
       {next && !editing && (
@@ -358,51 +347,42 @@ export function EditorClient(props: EditorProps) {
           <I.Pen />
           <span>{editing ? 'Done' : 'Edit'}</span>
         </button>
-        <button onClick={() => setSheet(true)}>
-          <I.Siren />
-          <span>Quick updates</span>
-          {leads.newCount > 0 && <i className="badge">{leads.newCount}</i>}
-        </button>
         <Link href={`/edit/${id}/promote`}>
           <I.Tag />
           <span>Flyers &amp; posts</span>
         </Link>
+        <button onClick={() => setSheet(true)} aria-expanded={sheet}>
+          <I.Badge />
+          <span>More</span>
+          {leads.newCount > 0 && <i className="badge">{leads.newCount}</i>}
+        </button>
       </nav>
 
       {sheet && (
-        <Shell title="Quick updates" sub="The things you’ll change most, from your phone." close={() => setSheet(false)}>
-          <button className={`act em ${emergencyOn ? 'on' : ''}`} onClick={() => pick('status')} aria-pressed={emergencyOn}>
-            <span className="ic"><I.Siren /></span>
-            <span className="grow">
-              <b>{emergencyOn ? (p.availability.kind === 'emergency' ? 'Emergency calls are ON' : 'Showing “booked up”') : 'Taking emergency calls?'}</b>
-              <small>{emergencyOn ? `Turns off ${until}` : 'Put a red “Call now” bar on your site'}</small>
-            </span>
-            <span className="toggle" aria-hidden />
-          </button>
-          <button className="act" onClick={() => pick('photos', 'new')}>
-            <span className="ic"><I.Camera /></span>
-            <span className="grow"><b>Post a job photo</b><small>Show off work you just finished</small></span>
-            <span aria-hidden>›</span>
-          </button>
+        <Shell title="More" close={() => setSheet(false)}>
           <form className="act ask" onSubmit={runCmd}>
-            <label htmlFor="ask-input"><b>Something changed? Tell us.</b></label>
+            <label htmlFor="ask-input"><b>Something changed? Type it.</b></label>
             <div className="ask-row">
               <input id="ask-input" value={cmd} onChange={(e) => setCmd(e.target.value)} placeholder={`e.g. ${EXAMPLES[ex % EXAMPLES.length]}`} autoComplete="off" />
               <button type="submit" className="btn primary">Go</button>
             </div>
           </form>
-          <details className="more">
-            <summary>More things you can change</summary>
-            <div className="more-list">
-              {more.map(([name, icon, title, sub]) => (
-                <button key={name} className="row" onClick={() => pick(name)}>
-                  <span className="ic">{icon}</span>
-                  <span className="grow"><b>{title}</b><small>{sub}</small></span>
-                  <span aria-hidden>›</span>
-                </button>
-              ))}
-            </div>
-          </details>
+          <div className="more-list">
+            {more.map(([name, icon, title, sub]) => (
+              <button key={name} className="row" onClick={() => pick(name)}>
+                <span className="ic">{icon}</span>
+                <span className="grow"><b>{title}</b><small>{sub}</small></span>
+                <span aria-hidden>›</span>
+              </button>
+            ))}
+            {live && (
+              <a className="row" href={props.siteUrl} target="_blank" rel="noopener">
+                <span className="ic"><I.Eye /></span>
+                <span className="grow"><b>Open my live website</b><small>{props.siteUrl.replace(/^https?:\/\//, '')}</small></span>
+                <span aria-hidden>›</span>
+              </a>
+            )}
+          </div>
         </Shell>
       )}
 

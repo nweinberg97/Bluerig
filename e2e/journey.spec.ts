@@ -99,8 +99,8 @@ test('import → claim → edit → publish → lead → restart', async ({ brow
   await owner.getByRole('button', { name: 'Mark handled' }).click();
   await expect.poll(async () => (await db.from('leads').select('handled').eq('business_id', businessId).single()).data?.handled).toBe(true);
   await owner.keyboard.press('Escape');
-  await owner.getByRole('button', { name: 'Menu' }).click();
-  await owner.getByRole('menuitem', { name: 'Undo older changes' }).click();
+  await owner.locator('.ed3-dock').getByRole('button', { name: /More/ }).click();
+  await owner.getByRole('button', { name: /Undo older changes/ }).click();
   await expect(owner.locator('.rp .li')).toHaveCount(2); // "put live" + the headline edit
   await owner.keyboard.press('Escape');
 
@@ -111,7 +111,18 @@ test('import → claim → edit → publish → lead → restart', async ({ brow
   await expect(stranger.getByText('This website has been claimed by its owner.')).toBeVisible();
   await expect(stranger.getByRole('button', { name: /Text a code/ })).toHaveCount(0);
 
-  // 8. Restart the server: everything is still there.
+  // 8. Self-serve: typing the same website on the landing page is refused (it has
+  //    an owner); typing a new one builds a private preview and texts the link.
+  const taken = await customer.request.post('/api/preview', { data: { website: `${MOCK}/shop/`, contact: '604-555-0177' } });
+  expect(taken.status()).toBe(409);
+  const fresh = await customer.request.post('/api/preview', { data: { website: 'http://localhost:4010/shop/', contact: '604-555-0177' } });
+  expect(fresh.status()).toBe(200);
+  const { previewPath: freshPath } = await fresh.json();
+  await expect.poll(() => lastText('+16045550177')?.body ?? '').toContain(freshPath);
+  await customer.goto(freshPath);
+  await expect(customer.getByText('This is your new website.')).toBeVisible();
+
+  // 9. Restart the server: everything is still there.
   await stopApp(app);
   app = await startApp();
   await customer.goto(`/s/${biz!.slug}`);

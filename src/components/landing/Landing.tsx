@@ -4,7 +4,7 @@
 // what it is → a real example → how it works → what you can do from the truck →
 // price → questions → get your free preview.
 
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Site } from '../Site';
 import * as I from '../icons';
 import { exampleProfile } from '@/lib/example';
@@ -13,15 +13,17 @@ export interface LandingProps {
   /** Where "See an example" goes. */
   exampleHref: string;
   onExample?: () => void;
-  /** Sends a preview request. Return null on success or an error message. */
-  requestPreview: (website: string, contact: string) => Promise<string | null>;
+  /** Builds the preview and opens it. Returns an error message, or null when it's opening. */
+  buildPreview: (website: string, contact: string) => Promise<string | null>;
   signInHref?: string;
+  /** Pre-filled website (the guided example uses a made-up shop). */
+  defaultSite?: string;
 }
 
 const STEPS: [ReactNode, string, string][] = [
-  [<I.Leaf key="i" />, 'We build it for you', 'From your current website: your logo, colours, services and phone number. Nothing to fill in.'],
-  [<I.Phone key="i" />, 'You get a link by text', 'Open it on your phone. That’s your new website. Change anything you like.'],
-  [<I.Check key="i" />, 'Keep it and update it from the truck', 'When you’re happy, it goes live. After that, changes take seconds.'],
+  [<I.Leaf key="i" />, 'Type your current website', 'We build your new one from it: your logo, colours, services and phone number. Nothing to fill in.'],
+  [<I.Phone key="i" />, 'Look at it, change anything', 'It’s private until you say so. Tap any words to change them.'],
+  [<I.Check key="i" />, 'Make it yours with a code', 'We text a code to the phone number on your website, so only your shop can keep it. Then it goes live.'],
 ];
 
 const TRUCK: [ReactNode, string, string][] = [
@@ -40,23 +42,80 @@ const FAQ: [string, string][] = [
   ['Can my office manager or crew update it too?', 'Yes. Invite anyone by email. Everyone edits the same website.'],
 ];
 
-export function Landing({ exampleHref, onExample, requestPreview, signInHref }: LandingProps) {
-  const example = exampleProfile();
-  const [site, setSite] = useState('');
+const BUILDING = ['Reading your website', 'Finding your logo and colours', 'Finding your phone number and services', 'Building your new website'];
+
+/** Type your website, then where to send the link. That's all. */
+function PreviewForm({ buildPreview, id, defaultSite = '' }: { buildPreview: LandingProps['buildPreview']; id: string; defaultSite?: string }) {
+  const [site, setSite] = useState(defaultSite);
   const [contact, setContact] = useState('');
-  const [state, setState] = useState<'idle' | 'busy' | 'done'>('idle');
+  const [step, setStep] = useState<'site' | 'contact' | 'busy'>('site');
+  const [tick, setTick] = useState(0);
   const [err, setErr] = useState('');
+  useEffect(() => {
+    if (step !== 'busy') return;
+    setTick(0);
+    const t = setInterval(() => setTick((n) => Math.min(n + 1, BUILDING.length - 1)), 1400);
+    return () => clearInterval(t);
+  }, [step]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    setState('busy');
     setErr('');
-    const problem = await requestPreview(site, contact);
+    if (step === 'site') {
+      if (!/\./.test(site)) return setErr('Type your current website, like yourshop.ca.');
+      return setStep('contact');
+    }
+    setStep('busy');
+    const problem = await buildPreview(site, contact);
     if (problem) {
       setErr(problem);
-      setState('idle');
-    } else setState('done');
+      setStep('contact');
+    }
   }
+
+  if (step === 'busy') {
+    return (
+      <div className="lp-building" aria-live="polite">
+        <b>Building your new website…</b>
+        <ul>
+          {BUILDING.map((t, i) => (
+            <li key={t} className={i < tick ? 'ok' : i === tick ? 'now' : ''}>
+              {i < tick ? <I.Check /> : <span className="spin" />}
+              {t}
+            </li>
+          ))}
+        </ul>
+        <small>This takes about 20 seconds.</small>
+      </div>
+    );
+  }
+  return (
+    <form className="lp-form" onSubmit={submit}>
+      {step === 'site' ? (
+        <label htmlFor={`${id}-site`}>
+          Your current website
+          <input id={`${id}-site`} value={site} onChange={(e) => setSite(e.target.value)} placeholder="yourshop.ca" autoComplete="url" inputMode="url" />
+        </label>
+      ) : (
+        <>
+          <p className="lp-form-site">
+            <b>{site}</b> <button type="button" className="lp-link" onClick={() => setStep('site')}>Change</button>
+          </p>
+          <label htmlFor={`${id}-contact`}>
+            Where should we send your link?
+            <input id={`${id}-contact`} value={contact} onChange={(e) => setContact(e.target.value)} placeholder="Mobile number or email" autoComplete="tel" autoFocus />
+          </label>
+        </>
+      )}
+      {err && <p className="lp-err">{err}</p>}
+      <button className="lp-btn primary wide">{step === 'site' ? 'Build my new website' : 'Show me my new website'}</button>
+      {step === 'contact' && <p className="lp-fine">Free. Only you can see it. Your current website doesn’t change.</p>}
+    </form>
+  );
+}
+
+export function Landing({ exampleHref, onExample, buildPreview, signInHref, defaultSite }: LandingProps) {
+  const example = exampleProfile();
   const exampleLink = (cls: string, label: string) => (
     <a
       className={cls}
@@ -84,10 +143,8 @@ export function Landing({ exampleHref, onExample, requestPreview, signInHref }: 
           <p className="lp-eyebrow">For heating, cooling &amp; plumbing shops in Canada</p>
           <h1>Your new website is already built.</h1>
           <p className="lp-sub">We turn your current website into a fast, modern one. Then you keep it up to date from your phone, in seconds.</p>
-          <div className="lp-ctas">
-            {exampleLink('lp-btn primary', 'See an example')}
-            <a className="lp-btn" href="#preview">Get my free preview</a>
-          </div>
+          <PreviewForm buildPreview={buildPreview} id="hero" defaultSite={defaultSite} />
+          <p className="lp-or">or {exampleLink('lp-link', 'see an example first')}</p>
         </div>
         <div className="lp-phone" aria-label="Example: a new website for Northline Mechanical, a made-up shop">
           <div className="lp-phone-screen" aria-hidden>
@@ -156,24 +213,9 @@ export function Landing({ exampleHref, onExample, requestPreview, signInHref }: 
       </section>
 
       <section className="lp-sec lp-cta" id="preview">
-        <h2>Get your free preview</h2>
-        <p className="lp-lead">Tell us your current website. We’ll text you a link to your new one.</p>
-        {state === 'done' ? (
-          <p className="lp-done">Thanks! We’ll build your preview and text you the link.</p>
-        ) : (
-          <form className="lp-form" onSubmit={submit}>
-            <label>
-              Your current website
-              <input value={site} onChange={(e) => setSite(e.target.value)} placeholder="yourshop.ca" required autoComplete="url" inputMode="url" />
-            </label>
-            <label>
-              Your mobile number or email
-              <input value={contact} onChange={(e) => setContact(e.target.value)} placeholder="604-555-0123" required autoComplete="tel" />
-            </label>
-            {err && <p className="lp-err">{err}</p>}
-            <button className="lp-btn primary wide" disabled={state === 'busy'}>{state === 'busy' ? 'Sending…' : 'Get my free preview'}</button>
-          </form>
-        )}
+        <h2>See your new website</h2>
+        <p className="lp-lead">Type your current website. In about 20 seconds you’ll see your new one.</p>
+        <PreviewForm buildPreview={buildPreview} id="end" defaultSite={defaultSite} />
       </section>
 
       <footer className="lp-foot">

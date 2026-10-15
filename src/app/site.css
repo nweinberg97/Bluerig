@@ -194,3 +194,10 @@
 .editing .svc:hover .more,.editing .svc:focus-within .more{display:block}
 .collab-ring{box-shadow:0 0 0 2px var(--c,#4FD1A0),0 0 0 8px rgba(79,209,160,.18)!important}
 .editing .alert .edt,.editing .special .edt{top:50%;transform:translateY(-50%);right:6px}
+/* edit mode: where optional parts of the page go */
+.addline{display:flex;gap:10px;align-items:center;width:100%;border:0;border-bottom:1.5px dashed #c9d3dd;background:#f4f7fa;color:#24323f;font:inherit;font-size:14px;text-align:left;padding:10px clamp(18px,4.5cqw,56px);cursor:pointer}
+.addline svg{width:18px;height:18px;flex:none}
+.addline.em{background:#fdf0ef;border-bottom-color:#efb8b2;color:#7a1a12}
+.addline:hover{filter:brightness(.97)}
+.job .share{position:absolute;top:10px;right:10px;display:inline-flex;gap:6px;align-items:center;border:0;border-radius:999px;background:rgba(255,255,255,.95);color:#10251a;font:700 13px/1 var(--f);padding:7px 11px;box-shadow:0 2px 10px rgba(0,0,0,.18);cursor:pointer}
+.job .share svg{width:15px;height:15px}

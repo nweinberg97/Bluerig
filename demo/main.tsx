@@ -1,6 +1,6 @@
-// Bluerig demo: the whole story in order, with the real screens from the app and
-// a made-up shop. Nothing is sent anywhere.
-//   1. Bluerig's landing page  2. You make a link  3. The owner opens it  4. The owner edits
+// The guided example: the real flow with the real screens, on a made-up shop, with a
+// pretend server so nothing is sent anywhere.
+//   1. Type your website  2. Your new website  3. Make changes
 import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Landing } from '../src/components/landing/Landing';
@@ -9,28 +9,28 @@ import { EditorClient } from '../src/components/editor/EditorClient';
 import { PromoteClient } from '../src/components/editor/PromoteClient';
 import { installMockApi, SITE_URL } from './mock-api';
 import { store } from './store';
-import { DemoClaim, MakeLink } from './screens';
+import { DemoClaim } from './screens';
 
 installMockApi();
 
-type Step = 'bluerig' | 'link' | 'owner' | 'editor' | 'promote';
+type Step = 'bluerig' | 'owner' | 'editor' | 'promote';
 const STEPS: [Step, string][] = [
-  ['bluerig', 'Bluerig’s website'],
-  ['link', 'You make a link'],
-  ['owner', 'The owner opens it'],
-  ['editor', 'The owner edits'],
+  ['bluerig', 'Type your website'],
+  ['owner', 'Your new website'],
+  ['editor', 'Make changes'],
 ];
 const ME = { id: 'me', email: 'owner@northline.example' };
 
 function fromHash(): Step {
   const h = location.hash.replace('#', '') as Step;
-  return (['bluerig', 'link', 'owner', 'editor', 'promote'] as Step[]).includes(h) ? h : 'bluerig';
+  return (['bluerig', 'owner', 'editor', 'promote'] as Step[]).includes(h) ? h : 'bluerig';
 }
 
 function App() {
   const [step, setStep] = useState<Step>(fromHash);
   const [mountKey, setMountKey] = useState(0);
   const [claimOpen, setClaimOpen] = useState(false);
+  const [topic, setTopic] = useState<string | undefined>();
   const [, force] = useState(0);
   const go = (s: Step) => {
     setStep(s);
@@ -46,7 +46,9 @@ function App() {
   useEffect(() => {
     const nav = (e: Event) => {
       const href = String((e as CustomEvent).detail);
-      go(href.endsWith('/promote') ? 'promote' : 'editor');
+      const u = new URL(href, 'https://x.local');
+      setTopic(u.searchParams.get('topic') ?? undefined);
+      go(u.pathname.endsWith('/promote') ? 'promote' : 'editor');
     };
     const upd = () => force((n) => n + 1);
     window.addEventListener('demo:navigate', nav);
@@ -70,7 +72,7 @@ function App() {
   return (
     <>
       <div className="demo-steps" role="navigation" aria-label="Demo steps">
-        <span className="demo-tag">Demo</span>
+        <span className="demo-tag">Example</span>
         <span className="demo-now">
           Step {idx + 1} of {STEPS.length}: <b>{STEPS[idx][1]}</b>
         </span>
@@ -85,20 +87,22 @@ function App() {
           <button disabled={idx === 0} onClick={() => go(STEPS[idx - 1][0])} aria-label="Previous step">‹</button>
           <button disabled={idx === STEPS.length - 1} onClick={() => go(STEPS[idx + 1][0])} aria-label="Next step">›</button>
         </span>
+        <span className="demo-note">Made-up shop · nothing is sent</span>
         <button className="demo-reset" onClick={() => { store.reset(); go('bluerig'); }}>Start over</button>
       </div>
 
       {step === 'bluerig' && (
         <Landing
-          exampleHref="#link"
-          onExample={() => go('link')}
-          requestPreview={async () => {
-            await new Promise((r) => setTimeout(r, 400));
+          exampleHref="#owner"
+          defaultSite="northline-mechanical.ca"
+          onExample={() => go('owner')}
+          buildPreview={async () => {
+            await new Promise((r) => setTimeout(r, 5200));
+            go('owner');
             return null;
           }}
         />
       )}
-      {step === 'link' && <MakeLink onOpen={() => go('owner')} />}
       {step === 'owner' && (
         <PreviewExperience
           profile={s.draft}
@@ -114,7 +118,7 @@ function App() {
       {step === 'editor' && (
         <EditorClient key={mountKey} id="demo" slug="northline" siteUrl={SITE_URL} previewUrl="#owner" live={!!s.published} role="owner" me={ME} draft={s.draft} published={s.published} />
       )}
-      {step === 'promote' && <PromoteClient key={mountKey} id="demo" profile={s.published ?? s.draft} siteUrl={SITE_URL} live={!!s.published} />}
+      {step === 'promote' && <PromoteClient key={mountKey} id="demo" profile={s.published ?? s.draft} siteUrl={SITE_URL} live={!!s.published} initialTopic={topic} />}
     </>
   );
 }

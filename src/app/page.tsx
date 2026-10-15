@@ -7,11 +7,14 @@ export default function Home() {
     <Landing
       exampleHref="/example"
       signInHref="/login"
-      requestPreview={async (website, contact) => {
-        const r = await fetch('/api/preview-request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ website, contact }) }).catch(() => null);
-        if (r?.ok) return null;
-        const j = r ? await r.json().catch(() => ({})) : {};
-        return (j as { error?: string }).error ?? 'That didn’t go through. Please try again.';
+      buildPreview={async (website, contact) => {
+        const r = await fetch('/api/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ website, contact }) }).catch(() => null);
+        const j = r ? ((await r.json().catch(() => ({}))) as { previewPath?: string; error?: string }) : {};
+        if (r?.ok && j.previewPath) {
+          window.location.href = j.previewPath;
+          return null;
+        }
+        return j.error ?? 'That didn’t go through. Please try again.';
       }}
     />
   );

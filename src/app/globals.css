@@ -420,3 +420,15 @@ details.more[open] summary::after { content: '▴'; }
 .claim-steps li::before { content: counter(s) '. '; }
 .claim-steps li[aria-current='true'] { background: var(--plf); color: #fff; }
 .claim .btn.big { justify-content: center; }
+.lp-form-site { margin: 0; display: flex; gap: 8px; align-items: center; font-size: 16px; }
+.lp-link { background: none; border: 0; padding: 0; color: var(--lp-blue); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+.lp-or { margin: 14px 0 0; color: var(--lp-mute); }
+.lp-fine { margin: 0; font-size: 13.5px; color: var(--lp-mute); }
+.lp-building { background: var(--lp-card); border: 1px solid var(--lp-line); border-radius: 18px; padding: 18px; display: grid; gap: 10px; max-width: 460px; }
+.lp-building ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.lp-building li { display: flex; gap: 10px; align-items: center; font-weight: 650; color: var(--lp-mute); }
+.lp-building li.ok, .lp-building li.now { color: var(--lp-ink); }
+.lp-building svg { width: 18px; height: 18px; color: #1a9a5a; flex: none; }
+.lp-building small { color: var(--lp-mute); }
+.lp .spin { width: 16px; height: 16px; border-radius: 50%; border: 2.5px solid var(--lp-line); border-top-color: var(--lp-blue); animation: spin 0.8s linear infinite; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }

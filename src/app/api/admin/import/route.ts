@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     const slug = await uniqueSlug(slugify(r.profile.brand.name === 'Your Shop' ? new URL(r.root).hostname.replace(/^www\.|\.[a-z.]+$/g, '') : r.profile.brand.name));
     const { data, error } = await adminClient()
       .from('businesses')
-      .insert({ slug, status: 'preview', draft: r.profile, source_url: r.root, import_sources: { sources: r.sources, warnings: r.warnings, skipped: r.skipped }, created_by: user.id })
+      .insert({ slug, status: 'preview', draft: r.profile, source_url: r.root, import_sources: { host: new URL(r.root).hostname.toLowerCase().replace(/^www\./, ''), sources: r.sources, warnings: r.warnings, skipped: r.skipped }, created_by: user.id })
       .select('id, preview_token')
       .single();
     if (error) return fail('Couldn’t save the draft.', 500);

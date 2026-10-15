@@ -73,6 +73,19 @@ export function Site({ profile: p, mode, now, businessId, reviews, reviewLink }:
           <EdTag ed={ed}>Change</EdTag>
         </div>
       )}
+      {/* In edit mode, optional parts of the page show a slim "add" strip where they'd go. */}
+      {ed && !statusOn && (
+        <button type="button" className="addline em" data-panel="status">
+          <I.Siren />
+          <span><b>Emergency calls: off.</b> Tap to show a red “Call now” bar at the top of your website.</span>
+        </button>
+      )}
+      {ed && !p.special && (
+        <button type="button" className="addline" data-panel="special">
+          <I.Tag />
+          <span><b>Add a deal</b> (optional), like $50 off a tune-up. It takes itself down after the last day.</span>
+        </button>
+      )}
       {p.special && (specialOn || ed) && (
         <div className={`special ${ed ? 'ed' : ''}`} {...edAttrs('special')} style={specialOn ? undefined : { opacity: 0.55 }}>
           <div className="w">
@@ -190,7 +203,7 @@ export function Site({ profile: p, mode, now, businessId, reviews, reviewLink }:
             <div className={`prices ${ed ? 'ed' : ''}`} {...edAttrs('prices')}>
               <div>
                 <h2>Straight prices</h2>
-                <p>{p.prices.length ? 'No surprises before we start. We’ll quote anything else up front.' : 'Add your diagnostic fee or service call price so customers know what to expect.'}</p>
+                <p>{p.prices.length ? 'No surprises before we start. We’ll quote anything else up front.' : 'Optional. Add your diagnostic fee or service call price so customers know what to expect.'}</p>
               </div>
               <ul>
                 {p.prices.map((x) => (
@@ -214,7 +227,7 @@ export function Site({ profile: p, mode, now, businessId, reviews, reviewLink }:
           <div className="w">
             <div className="sh">
               <h2>Recent work</h2>
-              <p>Real jobs, photographed by our crew.</p>
+              <p>{ed && !jobs.length ? 'Optional. This section only shows on your website once you add a photo.' : 'Real jobs, photographed by our crew.'}</p>
             </div>
             <div className="jobs">
               {jobs.map((j) => (
@@ -237,6 +250,12 @@ export function Site({ profile: p, mode, now, businessId, reviews, reviewLink }:
                     {j.caption}
                     <small>{[j.town, fmtDate(j.date)].filter(Boolean).join(' · ')}</small>
                   </figcaption>
+                  {ed && (
+                    <button type="button" className="share" data-share={`job:${j.id}`}>
+                      <I.Share />
+                      Share
+                    </button>
+                  )}
                 </figure>
               ))}
               {ed && (
@@ -325,6 +344,11 @@ export function Site({ profile: p, mode, now, businessId, reviews, reviewLink }:
             <div className="revlinks">
               {reviews?.mapsUrl && <a className="ghostbtn" href={reviews.mapsUrl} target="_blank" rel="noopener">Read all reviews on Google</a>}
               {reviewLink && !ed && <a className="ghostbtn" href={reviewLink} target="_blank" rel="noopener">Leave us a review</a>}
+              {ed && (
+                <button type="button" className="ghostbtn" data-panel="reviews">
+                  Text a customer your review link
+                </button>
+              )}
             </div>
           </div>
         </section>
