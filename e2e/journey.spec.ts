@@ -85,14 +85,23 @@ test('import → claim → edit → publish → lead → restart', async ({ brow
   expect(leads).toEqual([{ name: 'Dana Example', message: 'Furnace is blowing cold air' }]);
   await expect.poll(() => lastText('+16045550142')?.body ?? '').toMatch(/New request from your website/);
 
-  // 6. A second person can't claim it, and the old preview link is view-only.
+  // 6. The owner sees the request in the editor and marks it handled (BR-07).
+  await owner.goto(`/edit/${businessId}`);
+  await closePanels(owner);
+  await owner.getByRole('button', { name: /1 new customer request/ }).click();
+  await expect(owner.locator('.lead').filter({ hasText: 'Dana Example' })).toBeVisible();
+  await owner.getByRole('button', { name: 'Mark handled' }).click();
+  await expect.poll(async () => (await db.from('leads').select('handled').eq('business_id', businessId).single()).data?.handled).toBe(true);
+  await owner.keyboard.press('Escape');
+
+  // 7. A second person can't claim it, and the old preview link is view-only.
   const strangerCtx = await browser.newContext();
   const stranger = await strangerCtx.newPage();
   await stranger.goto(`${previewPath}`);
   await expect(stranger.getByText('This website has been claimed by its owner.')).toBeVisible();
   await expect(stranger.getByRole('button', { name: /Text a code/ })).toHaveCount(0);
 
-  // 7. Restart the server: everything is still there.
+  // 8. Restart the server: everything is still there.
   await stopApp(app);
   app = await startApp();
   await customer.goto(`/s/${biz!.slug}`);

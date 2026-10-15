@@ -276,3 +276,15 @@ details.more[open] summary::after { content: '▴'; }
 .pr-grid { grid-template-columns: minmax(0, 1fr) 320px !important; }
 @media (max-width: 900px) { .pr-grid { grid-template-columns: minmax(0, 1fr) !important; } }
 .pr-more summary { cursor: pointer; font-weight: 700; font-size: 14px; }
+
+/* ---------- customer requests ---------- */
+.lead { background: var(--pl2); border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.lead.done { opacity: 0.6; }
+.lead-top { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.lead-top b { font-size: 15.5px; }
+.lead-top small { color: var(--plm); font-size: 12.5px; margin-left: auto; }
+.lead p { margin: 0; font-size: 14.5px; color: #2d3a46; }
+.lead-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.pill.red { background: #fde8e7; color: #b42318; }
+.act.leads { border-color: #2c5fb8; background: #0f1d33; }
+.act.leads .ic { background: var(--blu); color: #fff; }

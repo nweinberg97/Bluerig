@@ -16,6 +16,7 @@ import { Site } from '../Site';
 import * as I from '../icons';
 import { PANELS, type PanelName } from './panels';
 import { useDraft } from './useDraft';
+import { useLeads } from './useLeads';
 
 export interface EditorProps {
   id: string;
@@ -64,6 +65,7 @@ function pathFor(p: BusinessProfile, k: string): string[] | null {
 export function EditorClient(props: EditorProps) {
   const { id, me } = props;
   const d = useDraft(id, { draft: props.draft, published: props.published }, me);
+  const leads = useLeads(id, 60_000);
   const [open, setOpen] = useState<Open>(null);
   const [phoneFrame, setPhoneFrame] = useState(false);
   const [view, setView] = useState(false);
@@ -285,6 +287,7 @@ export function EditorClient(props: EditorProps) {
   const emergencyOn = p.availability.kind !== 'normal' && !!p.availability.until && Date.parse(p.availability.until) > Date.now();
   const until = emergencyOn ? new Date(p.availability.until!).toLocaleString('en-CA', { timeZone: p.timezone, weekday: 'short', hour: 'numeric', minute: '2-digit' }) : '';
   const more: [PanelName, ReactNode, string, string][] = [
+    ['leads', <I.Chat key="i" />, 'Customer requests', leads.newCount ? `${leads.newCount} new` : 'From the form on your website'],
     ['prices', <I.Dollar key="i" />, 'Prices', p.prices.length ? p.prices.slice(0, 2).map((x) => `${x.label} ${formatPrice(x)}`).join(' · ') : 'Add your diagnostic fee'],
     ['areas', <I.Map key="i" />, 'Towns you serve', `${p.towns.slice(0, 3).join(', ')}${p.towns.length > 3 ? ` +${p.towns.length - 3}` : ''}`],
     ['special', <I.Tag key="i" />, 'Post a deal', p.special ? p.special.title : 'Like a tune-up special'],
@@ -345,6 +348,20 @@ export function EditorClient(props: EditorProps) {
       <div className={`ed-body m-${mobileTab}`}>
         <aside className="ed-side" aria-label="What do you want to do?">
           <h2>What do you want to do?</h2>
+          {leads.newCount > 0 && (
+            <button className="act leads" onClick={() => setOpen({ name: 'leads' })}>
+              <span className="ic"><I.Chat /></span>
+              <span className="grow">
+                <b>{leads.newCount} new customer request{leads.newCount === 1 ? '' : 's'}</b>
+                <small>
+                  {leads.newCount === 1
+                    ? `From ${leads.leads.find((l) => !l.handled)?.name}`
+                    : `From ${leads.leads.find((l) => !l.handled)?.name} and ${leads.newCount - 1} more`}
+                </small>
+              </span>
+              <span aria-hidden>›</span>
+            </button>
+          )}
           {confirmLeft > 0 && (
             <button className="act check" onClick={() => setOpen({ name: 'confirm' })}>
               <span className="ic">!</span>
@@ -419,6 +436,7 @@ export function EditorClient(props: EditorProps) {
           confirm={confirm.items}
           onConfirmed={(ids) => (confirm.keys ? publishKeys(confirm.keys, ids) : launch(ids))}
           close={(msg) => {
+            if (open.name === 'leads') void leads.reload();
             setOpen(null);
             if (msg) {
               if (live) lastMsg.current = msg;
