@@ -1,27 +1,37 @@
+import { NextResponse } from 'next/server';
 import { forEditor } from '@/lib/server/db';
-import { body, fail, ok, str } from '@/lib/server/http';
+import { body, fail, limited, str } from '@/lib/server/http';
 import { adminClient } from '@/lib/supabase/server';
+import { sendEmail } from '@/lib/server/notify';
+import { inviteEditor } from '@/lib/team/invite';
 
-/** Owners invite people who can edit. They get a sign-in link by email. */
+/** Owners invite people who can edit. Everyone gets the sign-in link by email. */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const a = await forEditor((await params).id);
   if (!a || (a.role !== 'owner' && a.role !== 'staff')) return fail('Only the owner can invite people.', 403);
-  const email = str((await body(req)).email, 200).toLowerCase();
-  if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(email)) return fail('That email doesn’t look right.');
+  if (limited(`invite:${a.row.id}`, 20, 24 * 3600 * 1000)) return fail('That’s a lot of invites for one day. Try again tomorrow.', 429);
   const sb = adminClient();
-  const app = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
-  const redirectTo = `${app}/auth/callback?next=/edit/${a.row.id}`;
-  // Existing users get a magic link; new people get an invite. Either way: membership.
-  let userId: string | undefined;
-  const inv = await sb.auth.admin.inviteUserByEmail(email, { redirectTo });
-  if (inv.data.user) userId = inv.data.user.id;
-  else {
-    const link = await sb.auth.admin.generateLink({ type: 'magiclink', email, options: { redirectTo } });
-    userId = link.data.user?.id;
-    if (!userId) return fail('Couldn’t invite that person. Try again.', 500);
-    // generateLink doesn't send email: sign-in from /login works for them now.
-  }
-  const { error } = await sb.from('members').upsert({ business_id: a.row.id, user_id: userId, role: 'editor' }, { onConflict: 'business_id,user_id', ignoreDuplicates: true });
-  if (error) return fail('Couldn’t add them. Try again.', 500);
-  return ok({ email });
+  const r = await inviteEditor(
+    {
+      appUrl: process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
+      async ensureUser(email) {
+        const created = await sb.auth.admin.createUser({ email, email_confirm: true });
+        if (created.data.user) return created.data.user.id;
+        // Already has an account: generateLink returns the existing user.
+        const link = await sb.auth.admin.generateLink({ type: 'magiclink', email });
+        return link.data.user?.id ?? null;
+      },
+      async signInToken(email) {
+        const link = await sb.auth.admin.generateLink({ type: 'magiclink', email });
+        return link.data.properties?.hashed_token ?? null;
+      },
+      async addEditor(businessId, userId) {
+        const { error } = await sb.from('members').upsert({ business_id: businessId, user_id: userId, role: 'editor' }, { onConflict: 'business_id,user_id', ignoreDuplicates: true });
+        return !error;
+      },
+      sendEmail: (to, subject, text) => sendEmail(to, subject, text),
+    },
+    { businessId: a.row.id, businessName: a.row.draft.brand.name, email: str((await body(req)).email, 200), inviterEmail: a.email },
+  );
+  return NextResponse.json(r.body, { status: r.status });
 }
