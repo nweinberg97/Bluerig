@@ -38,6 +38,17 @@ export async function byPreviewToken(token: string): Promise<BusinessRow | null>
   return (data as BusinessRow | null) ?? null;
 }
 
+/** User ids of a business's owners (empty = not claimed yet). */
+export async function ownerIds(businessId: string): Promise<string[]> {
+  const { data } = await adminClient().from('members').select('user_id').eq('business_id', businessId).eq('role', 'owner');
+  return (data ?? []).map((m: { user_id: string }) => m.user_id);
+}
+
+export async function isMember(businessId: string, userId: string): Promise<boolean> {
+  const { data } = await adminClient().from('members').select('role').eq('business_id', businessId).eq('user_id', userId).maybeSingle();
+  return !!data;
+}
+
 export type Access = { row: BusinessRow; userId: string; email: string | null; role: 'owner' | 'editor' | 'staff' };
 
 /** The business, if the signed-in user is a member (or Bluerig staff). */
